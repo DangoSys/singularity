@@ -12,7 +12,7 @@ const entry = `window.__ModuleLoader__.load({
     const module = { exports: {} }
     const plugins = [${modules.map(id => `require(${JSON.stringify(id)})`).join(', ')}]
     module.exports.apply = (ctx) => { for (const plugin of plugins) plugin.apply(ctx) }
-    module.exports.inject = ['slots', 'layout']
+    module.exports.inject = ['slots', 'sessions', 'remote']
     return module.exports
   },
 })

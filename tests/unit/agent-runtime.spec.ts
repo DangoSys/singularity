@@ -1,7 +1,7 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import { AgentRuntime } from '../src/agent/index.ts'
+import { AgentRuntime } from '../../src/agent/index.ts'
 
 const id = (value: string) => value as SessionId
 
