@@ -3,6 +3,8 @@
       name: '@dangosys/dsh-singularity'
     - id: agent-runtime
       name: '@dangosys/dsh-singularity/agent'
+    - id: env-grow
+      name: '@dangosys/dsh-singularity/env-grow'
     - id: graph
       name: '@dangosys/dsh-singularity/graph'
     - id: graph-web

@@ -4,6 +4,7 @@ export default defineConfig({
   entry: [
     'src/index.ts',
     'src/agent/index.ts',
+    'src/env-grow/index.ts',
     'src/graph/index.ts',
     'src/web/index.ts',
     'src/canvas/index.ts',
