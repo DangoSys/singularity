@@ -13,6 +13,7 @@
   "exports": {
     ".": "./lib/index.js",
     "./agent": "./lib/agent/index.js",
+    "./env-grow": "./lib/env-grow/index.js",
     "./graph": "./lib/graph/index.js",
     "./web": "./lib/web/index.js",
     "./canvas": "./lib/canvas/index.js",
