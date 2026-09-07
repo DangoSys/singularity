@@ -46,6 +46,8 @@ window.__ModuleLoader__.load({
       state.source = new EventSource(EVENTS)
       state.source.addEventListener('graph', event => { if (generation !== state.generation) return; state.snapshot = validate(JSON.parse(event.data)); state.error = ''; render() })
       state.source.onerror = () => { if (generation !== state.generation) return; state.source?.close(); state.source = null; state.error = 'canvas: event stream closed'; render() }
+      state.source.addEventListener('pr-bot/path', event => { if (generation !== state.generation) return; emit('singularity:pr-bot/path', JSON.parse(event.data)) })
+      state.source.addEventListener('pr-bot/sent', event => { if (generation !== state.generation) return; emit('singularity:pr-bot/sent', JSON.parse(event.data)) })
     }
     function expand(event) {
       const direction = event.detail?.direction
