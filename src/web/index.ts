@@ -4,6 +4,22 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { GraphSnapshot } from '../graph/types.ts'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 
+interface PrBotPathEvent {
+  readonly path: 'pr' | 'bot'
+  readonly target: { readonly repo: string; readonly number: number } | { readonly sessionId: string }
+}
+
+interface PrBotSentEvent extends PrBotPathEvent {
+  readonly result: unknown
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    'pr-bot/path': (event: PrBotPathEvent) => void
+    'pr-bot/sent': (event: PrBotSentEvent) => void
+  }
+}
+
 export const name = 'graph-web'
 export const inject = ['graph', 'sessions', 'webServer']
 
@@ -21,6 +37,13 @@ export function apply(ctx: Context): void {
   const clients = new Set<ServerResponse>()
   const notices = new Set<ServerResponse>()
   let previousStatuses = new Map<SessionId, GraphSnapshot['agents'][number]['status']>()
+  const publishEvent = (name: string, value: unknown): void => {
+    const frame = `event: ${name}\ndata: ${JSON.stringify(value)}\n\n`
+    for (const res of clients) {
+      if (res.destroyed) clients.delete(res)
+      else res.write(frame)
+    }
+  }
   const publish = (snapshot: GraphSnapshot): void => {
     const frame = `event: graph\ndata: ${JSON.stringify(snapshot)}\n\n`
     for (const res of clients) {
@@ -49,6 +72,8 @@ export function apply(ctx: Context): void {
     previousStatuses = new Map(snapshot.agents.map(agent => [agent.id, agent.status]))
   }
   ctx.on('graph/change', publish)
+  ctx.on('pr-bot/path', event => publishEvent('pr-bot/path', event))
+  ctx.on('pr-bot/sent', event => publishEvent('pr-bot/sent', event))
   ctx.effect(() => {
     const graph = ctx.webServer.register({ kind: 'exact', path: GRAPH_PATH, handler: async (req, res) => {
       if (req.method !== 'GET') { send(res, 405, 'text/plain; charset=utf-8', 'method not allowed'); return }
