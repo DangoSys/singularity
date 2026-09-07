@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { AgentRuntime, Agent } from '../agent/index.ts'
@@ -12,7 +13,7 @@ interface EnvComponent {
 
 interface EnvStore {
   addComponent(envId: string, ref: string): Promise<string>
-  get(envId: string): { readonly components: readonly EnvComponent[] }
+  get(envId: string): { readonly path: string; readonly components: readonly EnvComponent[] }
   attachSession(envId: string, sessionId: string): unknown
 }
 
@@ -35,7 +36,8 @@ export class EnvGrowService extends Service {
 
   private async grow(envId: string, dir: string): Promise<void> {
     const store = this.ctx.get('envBuilder').store as EnvStore
-    const component = store.get(envId).components.find(item => item.dir === dir.split('/').pop())
+    const env = store.get(envId)
+    const component = env.components.find(item => join(env.path, item.dir) === dir)
     if (component === undefined) throw new Error(`env-grow: installed component is missing from ${envId}`)
 
     const snapshot = await this.ctx.graph.snapshot()
