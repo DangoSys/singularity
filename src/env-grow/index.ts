@@ -17,7 +17,7 @@ interface EnvStore {
 }
 
 export class EnvGrowService extends Service {
-  static inject = ['graph', 'agentRuntime', 'envBuilder']
+  static inject = ['graph', 'agentRuntime', 'agents', 'envBuilder']
 
   constructor(ctx: Context) {
     super(ctx, 'envGrow')
