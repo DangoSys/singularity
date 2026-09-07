@@ -7,6 +7,7 @@ window.__ModuleLoader__.load({
     const h = (tag, props = {}, ...children) => { const node = document.createElement(tag); Object.entries(props).forEach(([key, value]) => { if (key === 'className') node.className = value; else if (key === 'dataset') Object.assign(node.dataset, value); else node.setAttribute(key, value) }); for (const child of children) node.append(child); return node }
     const text = value => document.createTextNode(String(value))
     let selectedAgentId
+    let sessionService
     function layout(snapshot, origin) {
       if (!origin || !Number.isFinite(origin.x) || !Number.isFinite(origin.y)) throw new Error("node: graph origin is invalid")
       const roots = new Set(snapshot.roots); const agents = [...snapshot.agents].sort((a, b) => Number(roots.has(b.id)) - Number(roots.has(a.id))); const result = new Map()
@@ -21,9 +22,22 @@ window.__ModuleLoader__.load({
       root.querySelector(".canvas-inspector")?.remove(); if (!agent) return
       root.append(h("aside", { className: "canvas-inspector" }, h("div", { className: "canvas-inspector-title" }, text(agent.name)), h("div", { className: "canvas-inspector-subtitle" }, text("spawned from singularity · " + agent.status)), h("div", { className: "canvas-inspector-callout" }, text("Planning next hop"), h("small", {}, text("Edges grow from the origin as agents spawn.")))))
     }
-    function select(agent, root) {
+    function sessionBody(agent, sessions) {
+      const body = document.createElement('div')
+      body.dataset.sessionId = String(agent.id)
+      const status = document.createElement('div')
+      status.textContent = agent.status
+      const open = document.createElement('button')
+      open.type = 'button'
+      open.textContent = 'Open conversation'
+      open.onclick = () => sessions.open(agent.id)
+      body.append(status, open)
+      return body
+    }
+    function select(agent, root, sessions) {
       selectedAgentId = agent.id
       document.dispatchEvent(new CustomEvent("singularity:agent", { detail: agent }))
+      document.dispatchEvent(new CustomEvent('sticky:open', { detail: { id: `session:${agent.id}`, title: `${agent.name} session`, body: sessionBody(agent, sessions), target: agent, session: true } }))
       document.dispatchEvent(new CustomEvent("singularity:node-selected", { detail: { agent, agentId: agent.id } }))
       inspector(root, agent)
       document.querySelectorAll('.canvas-node').forEach(item => { item.dataset.selected = String(item.dataset.agentId === selectedAgentId) })
@@ -33,15 +47,16 @@ window.__ModuleLoader__.load({
       const snapshot = event.detail.snapshot; const positions = layout(snapshot, event.detail.origin); layer.replaceChildren(); groups.replaceChildren(); const byId = new Map(snapshot.agents.map(agent => [agent.id, agent]))
       if (selectedAgentId !== undefined && !byId.has(selectedAgentId)) selectedAgentId = undefined
       snapshot.groups.forEach(group => { const members = group.memberIds.map(id => byId.get(id)); if (members.some(agent => !agent)) throw new Error("node: group " + group.id + " references an unknown agent"); const nodes = members.map(agent => positions.get(agent.id)); if (nodes.some(item => !item)) throw new Error("node: group " + group.id + " has no visual position"); const x = Math.min(...nodes.map(item => item.x)) - 22; const y = Math.min(...nodes.map(item => item.y)) - 30; const width = Math.max(...nodes.map(item => item.x + item.width)) - x + 22; const height = Math.max(...nodes.map(item => item.y + item.height)) - y + 30; const box = h("div", { className: "canvas-group", style: "left:" + x + "px;top:" + y + "px;width:" + width + "px;height:" + height + "px" }, h("div", { className: "canvas-group-label" }, text("Group " + group.id))); box.onclick = () => document.dispatchEvent(new CustomEvent("singularity:group", { detail: group })); groups.append(box) })
-      snapshot.agents.forEach(agent => { const position = positions.get(agent.id); if (!position) throw new Error("node: agent " + agent.id + " has no visual position"); const item = h("article", { className: "canvas-node", dataset: { agentId: agent.id, shape: "card", status: agent.status, unread: "false", selected: String(agent.id === selectedAgentId) }, style: "left:" + position.x + "px;top:" + position.y + "px;width:" + position.width + "px;height:" + position.height + "px" }, h("span", { className: "canvas-node-unread" }), h("div", { className: "canvas-node-name" }, text(agent.name)), h("div", { className: "canvas-node-meta" }, h("span", {}, h("span", { className: "canvas-dot", dataset: { status: agent.status } }), text(agent.status)), h("span", {}, text(agent.routerFor ? "router" : "agent")))); const report = h("button", { className: "canvas-node-report", title: "Open report", "aria-label": "Open report" }, text("i")); report.onclick = event => { event.stopPropagation(); document.dispatchEvent(new CustomEvent("singularity:report", { detail: agent })) }; item.onclick = () => { document.dispatchEvent(new CustomEvent("singularity:unread", { detail: { agentId: agent.id, unread: false } })); select(agent, root) }; layer.append(item) })
+      snapshot.agents.forEach(agent => { const position = positions.get(agent.id); if (!position) throw new Error("node: agent " + agent.id + " has no visual position"); const item = h("article", { className: "canvas-node", dataset: { agentId: agent.id, shape: "card", status: agent.status, unread: "false", selected: String(agent.id === selectedAgentId) }, style: "left:" + position.x + "px;top:" + position.y + "px;width:" + position.width + "px;height:" + position.height + "px" }, h("span", { className: "canvas-node-unread" }), h("div", { className: "canvas-node-name" }, text(agent.name)), h("div", { className: "canvas-node-meta" }, h("span", {}, h("span", { className: "canvas-dot", dataset: { status: agent.status } }), text(agent.status)), h("span", {}, text(agent.routerFor ? "router" : "agent")))); const report = h("button", { className: "canvas-node-report", title: "Open report", "aria-label": "Open report" }, text("i")); report.onclick = event => { event.stopPropagation(); document.dispatchEvent(new CustomEvent("singularity:report", { detail: agent })) }; item.onclick = () => { document.dispatchEvent(new CustomEvent("singularity:unread", { detail: { agentId: agent.id, unread: false } })); select(agent, root, sessionService) }; layer.append(item) })
       inspector(root, selectedAgentId === undefined ? undefined : byId.get(selectedAgentId))
     }
     function focus(event) {
       const id = event.detail?.agentId; const item = [...document.querySelectorAll('.canvas-node')].find(node => node.dataset.agentId === id); if (!item) throw new Error("node: focus target is not rendered: " + String(id)); item.click(); item.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
     }
     function unread(event) { const item = [...document.querySelectorAll('.canvas-node')].find(node => node.dataset.agentId === event.detail.agentId); if (item) item.dataset.unread = String(event.detail.unread) }
-    function apply(ctx) { ctx.effect(() => { const style = document.createElement('style'); style.id = STYLE_ID; style.textContent = CSS; document.head.append(style); document.addEventListener('canvas:graph', draw); document.addEventListener('singularity:unread', unread); document.addEventListener('singularity:focus-node', focus); return () => { document.removeEventListener('canvas:graph', draw); document.removeEventListener('singularity:unread', unread); document.removeEventListener('singularity:focus-node', focus); style.remove() } }, 'node: lifecycle') }
+    function apply(ctx) { sessionService = ctx.sessions; ctx.effect(() => { const style = document.createElement('style'); style.id = STYLE_ID; style.textContent = CSS; document.head.append(style); document.addEventListener('canvas:graph', draw); document.addEventListener('singularity:unread', unread); document.addEventListener('singularity:focus-node', focus); return () => { document.removeEventListener('canvas:graph', draw); document.removeEventListener('singularity:unread', unread); document.removeEventListener('singularity:focus-node', focus); sessionService = undefined; style.remove() } }, 'node: lifecycle') }
     module.exports.apply = apply
+    module.exports.inject = ['sessions']
     return module.exports
   },
 })
