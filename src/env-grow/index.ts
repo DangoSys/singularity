@@ -20,8 +20,8 @@ interface EnvStore {
     readonly sessionIds: readonly string[]
   }
   bindComponentSession(envId: string, ref: string, sessionId: string): unknown
-  removeComponent(envId: string, ref: string): void
-  delete(envId: string): void
+  removeComponent(envId: string, ref: string): Promise<void>
+  delete(envId: string): Promise<void>
 }
 
 export class EnvGrowService extends Service {
@@ -38,15 +38,15 @@ export class EnvGrowService extends Service {
       await this.grow(envId, dir)
       return dir
     }
-    store.removeComponent = (envId, ref) => {
+    store.removeComponent = async (envId, ref) => {
       const sessionId = store.get(envId).components.find(item => item.owner + '/' + item.repo === ref)?.sessionId
-      removeComponent(envId, ref)
-      if (sessionId !== undefined) void this.ctx.agentRuntime.destroySession(sessionId)
+      await removeComponent(envId, ref)
+      if (sessionId !== undefined) await this.ctx.agentRuntime.destroySession(sessionId)
     }
-    store.delete = envId => {
+    store.delete = async envId => {
       const sessionIds = [...store.get(envId).sessionIds]
-      deleteEnvironment(envId)
-      for (const sessionId of sessionIds) void this.ctx.agentRuntime.destroySession(sessionId)
+      await deleteEnvironment(envId)
+      for (const sessionId of sessionIds) await this.ctx.agentRuntime.destroySession(sessionId)
     }
     ctx.effect(() => () => {
       store.addComponent = addComponent
