@@ -9,12 +9,19 @@ interface EnvComponent {
   readonly owner: string
   readonly repo: string
   readonly dir: string
+  readonly sessionId?: string
 }
 
 interface EnvStore {
   addComponent(envId: string, ref: string): Promise<string>
-  get(envId: string): { readonly path: string; readonly components: readonly EnvComponent[] }
-  attachSession(envId: string, sessionId: string): unknown
+  get(envId: string): {
+    readonly path: string
+    readonly components: readonly EnvComponent[]
+    readonly sessionIds: readonly string[]
+  }
+  bindComponentSession(envId: string, ref: string, sessionId: string): unknown
+  removeComponent(envId: string, ref: string): Promise<void>
+  delete(envId: string): Promise<void>
 }
 
 export class EnvGrowService extends Service {
@@ -24,13 +31,27 @@ export class EnvGrowService extends Service {
     super(ctx, 'envGrow')
     const store = ctx.get('envBuilder').store as EnvStore
     const addComponent = store.addComponent.bind(store)
+    const removeComponent = store.removeComponent.bind(store)
+    const deleteEnvironment = store.delete.bind(store)
     store.addComponent = async (envId, ref) => {
       const dir = await addComponent(envId, ref)
       await this.grow(envId, dir)
       return dir
     }
+    store.removeComponent = async (envId, ref) => {
+      const sessionId = store.get(envId).components.find(item => item.owner + '/' + item.repo === ref)?.sessionId
+      await removeComponent(envId, ref)
+      if (sessionId !== undefined) await this.ctx.agentRuntime.destroySession(sessionId)
+    }
+    store.delete = async envId => {
+      const sessionIds = [...store.get(envId).sessionIds]
+      await deleteEnvironment(envId)
+      for (const sessionId of sessionIds) await this.ctx.agentRuntime.destroySession(sessionId)
+    }
     ctx.effect(() => () => {
       store.addComponent = addComponent
+      store.removeComponent = removeComponent
+      store.delete = deleteEnvironment
     }, 'env-grow: add component')
   }
 
@@ -55,16 +76,16 @@ export class EnvGrowService extends Service {
     const childIndex = snapshot.agents.filter(agent => agent.id !== rootId).length
     const node = radialNode(rootNode.node, childIndex)
     const sessionId = SessionId(`component-${randomUUID()}`)
-    const handle = await this.ctx.agentRuntime.spawn(root, {
+    await this.ctx.agentRuntime.spawn(root, {
       sessionId,
       name: `${component.owner}/${component.repo}`,
       prompt: [{ type: 'text', text: `Inspect the newly installed ${component.owner}/${component.repo} component.` }],
       node,
     })
     try {
-      store.attachSession(envId, handle.agent.id)
+      store.bindComponentSession(envId, component.owner + '/' + component.repo, sessionId)
     } catch (error) {
-      await handle.dispose()
+      await this.ctx.agentRuntime.destroySession(sessionId)
       throw error
     }
   }

@@ -63,6 +63,7 @@ declare class AgentRuntime extends Service {
   constructor(ctx: Context);
   createRoot(request: RootRequest): Promise<AgentHandle>;
   spawn(parent: Agent, request: SpawnRequest): Promise<AgentHandle>;
+  destroySession(sessionId: string): Promise<void>;
   createGroup(router: Agent, request: GroupRequest): Promise<GroupHandle>;
   addMember(groupId: string, member: Agent): Promise<void>;
   handoff(parent: Agent, child: Agent, brief?: string): Promise<void>;

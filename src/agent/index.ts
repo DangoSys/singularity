@@ -117,6 +117,16 @@ export class AgentRuntime extends Service {
       throw error
     }
   }
+  async destroySession(sessionId: string): Promise<void> {
+    const id = SessionId(sessionId)
+    const handle = this.handles.get(id) ?? await this.ctx.agents.resume({
+      resumeSessionId: id,
+      agentOptions: this.ctx.agentDefaultModel.currentSelection(),
+    })
+    this.handles.delete(id)
+    this.owned.delete(id)
+    await handle.dispose()
+  }
   async createGroup(router: Agent, request: GroupRequest): Promise<GroupHandle> {
     this.live(router)
     const transcript = router.ctx.sessions.prepare(request.transcriptId)
