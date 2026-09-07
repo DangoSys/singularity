@@ -8,7 +8,7 @@ window.__ModuleLoader__.load({
     let selectedAgentId
     function point(node) { return { x: node.offsetLeft + node.offsetWidth / 2, y: node.offsetTop + node.offsetHeight / 2 } }
     function path(from, to) { const dx = to.x - from.x; const bend = Math.max(34, Math.abs(dx) * .28); return `M ${from.x} ${from.y} C ${from.x + (dx >= 0 ? bend : -bend)} ${from.y}, ${to.x - (dx >= 0 ? bend : -bend)} ${to.y}, ${to.x} ${to.y}` }
-    function composer() { return document.querySelector('[data-singularity-composer],[data-composer],.composer,[contenteditable="true"][data-placeholder]') }
+    function composer() { return document.querySelector('[data-singularity-composer]') }
     function drawComposerLink() {
       document.querySelector('.canvas-composer-overlay')?.remove()
       if (selectedAgentId === undefined) return
@@ -26,7 +26,7 @@ window.__ModuleLoader__.load({
       for (const agent of event.detail.snapshot.agents) { const item = [...document.querySelectorAll(".canvas-node")].find(node => node.dataset.agentId === agent.id); if (!item) throw new Error("connect: agent " + agent.id + " has no rendered node"); const target = point(item); const edge = edges.get(agent.id); const from = edge ? [...document.querySelectorAll(".canvas-node")].find(node => node.dataset.agentId === edge.from) : undefined; const start = from ? point(from) : origin; const curve = document.createElementNS("http://www.w3.org/2000/svg", "path"); curve.setAttribute("d", path(start, target)); if (edge) curve.dataset.kind = edge.kind; if (edge && !byId.has(edge.from)) throw new Error("connect: edge " + edge.id + " references an unknown source"); layer.append(curve) }
       drawComposerLink()
     }
-    function select(event) { selectedAgentId = event.detail?.agentId ?? event.detail?.agent?.id; if (lastEvent) draw(lastEvent) }
+    function select(event) { const agentId = event.detail?.agentId; if (agentId === undefined) throw new Error('connect: node selection has no agentId'); selectedAgentId = agentId; if (lastEvent) draw(lastEvent) }
     function apply(ctx) { ctx.effect(() => { const style = document.createElement('style'); style.id = STYLE_ID; style.textContent = CSS; document.head.append(style); document.addEventListener('canvas:graph', draw); document.addEventListener('singularity:node-selected', select); window.addEventListener('resize', drawComposerLink); return () => { document.removeEventListener('canvas:graph', draw); document.removeEventListener('singularity:node-selected', select); window.removeEventListener('resize', drawComposerLink); document.querySelector('.canvas-composer-overlay')?.remove(); lastEvent = undefined; selectedAgentId = undefined; style.remove() } }, 'connect: lifecycle') }
     module.exports.apply = apply
     return module.exports
