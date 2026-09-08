@@ -1,6 +1,7 @@
 import type { ServerResponse } from 'node:http'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { GraphSnapshot } from '@dangosys/dsh-singularity-graph'
+import type { LayoutSnapshot } from '@dangosys/dsh-singularity-layout'
 
 export class GraphBroadcast {
   readonly clients = new Set<ServerResponse>()
@@ -13,6 +14,10 @@ export class GraphBroadcast {
       if (res.destroyed) this.clients.delete(res)
       else res.write(frame)
     }
+  }
+
+  publishLayout(snapshot: LayoutSnapshot): void {
+    this.publishEvent('layout', snapshot)
   }
 
   publish(snapshot: GraphSnapshot): void {

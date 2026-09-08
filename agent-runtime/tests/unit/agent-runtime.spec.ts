@@ -16,7 +16,6 @@ function context(roots: readonly SessionId[]) {
   const createOptions: unknown[] = []
   const resumeOptions: unknown[] = []
   const added: unknown[] = []
-  const nodes: unknown[] = []
   const handle = (value: Agent): AgentHandle => ({
     agent: value,
     dispose: async () => {},
@@ -44,13 +43,15 @@ function context(roots: readonly SessionId[]) {
         version: 1 as const,
         id: 'graph',
         roots,
-        agents: roots.map(agentId => ({ id: agentId, name: 'Singularity', status: 'idle' as const, node: { x: 80, y: 80, width: 168, height: 76, shape: 'card' as const } })),
+        agents: roots.map(agentId => ({ id: agentId, name: 'Singularity', status: 'idle' as const })),
         groups: [],
         edges: [],
       }),
       addAgent: async (value: unknown) => { added.push(value) },
-      setNode: async (agentId: SessionId, node: unknown) => { nodes.push({ agentId, node }) },
       setStatus: async () => {},
+    },
+    layout: {
+      remove: async () => {},
     },
     sessions: {},
     sessionPersistence: {},
@@ -62,24 +63,19 @@ function context(roots: readonly SessionId[]) {
       }
     },
   }
-  return { ctx, created, resumed, createOptions, resumeOptions, added, nodes }
+  return { ctx, created, resumed, createOptions, resumeOptions, added }
 }
 
 describe('AgentRuntime root lifecycle', () => {
-  test('creates the stable root when the graph has no roots', async () => {
+  test('does not auto-create a root when the graph is empty', async () => {
     const state = context([])
     new AgentRuntime(state.ctx as never)
     await Promise.resolve()
     await Promise.resolve()
 
-    expect(state.created).toEqual(['root'])
-    expect(state.createOptions).toEqual([{
-      sessionId: id('root'),
-      meta: { cwd: process.cwd() },
-      agentOptions: { provider: 'default-provider', model: 'default-model' },
-    }])
+    expect(state.created).toEqual([])
     expect(state.resumed).toEqual([])
-    expect(state.added).toEqual([{ id: id('root'), name: 'Singularity', status: 'idle', node: { x: 80, y: 80, width: 168, height: 76, shape: 'card' } }])
+    expect(state.added).toEqual([])
   })
 
   test('resumes every persisted root without creating a replacement', async () => {
@@ -94,27 +90,15 @@ describe('AgentRuntime root lifecycle', () => {
       resumeSessionId: id('root'),
       agentOptions: { provider: 'default-provider', model: 'default-model' },
     }])
-    expect(state.nodes).toEqual([])
   })
 
-  test('migrates a persisted root that predates node geometry', async () => {
-    const state = context([id('root')])
-    state.ctx.graph.snapshot = async () => ({
-      version: 1 as const,
-      id: 'graph',
-      roots: [id('root')],
-      agents: [{ id: id('root'), name: 'Singularity', status: 'idle' }],
-      groups: [],
-      edges: [],
-    }) as never
-    new AgentRuntime(state.ctx as never)
+  test('createRoot adds a Singularity agent without layout geometry', async () => {
+    const state = context([])
+    const runtime = new AgentRuntime(state.ctx as never)
     await Promise.resolve()
     await Promise.resolve()
-
-    expect(state.resumed).toEqual(['root'])
-    expect(state.nodes).toEqual([{
-      agentId: id('root'),
-      node: { x: 80, y: 80, width: 168, height: 76, shape: 'card' },
-    }])
+    await runtime.createRoot({ sessionId: id('root') })
+    expect(state.created).toEqual(['root'])
+    expect(state.added).toEqual([{ id: id('root'), name: 'Singularity', status: 'idle' }])
   })
 })

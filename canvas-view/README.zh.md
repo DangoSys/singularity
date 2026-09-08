@@ -16,7 +16,7 @@
 
 ### 注册的 Web API：
 
-无（消费 `/singular/*`）
+无（消费 `/singularity/*`）
 
 ### 维护的 Service 状态
 

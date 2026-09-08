@@ -8,14 +8,14 @@ window.__ModuleLoader__.load({
     const text = value => document.createTextNode(String(value))
     let selectedAgentId
     let sessionService
-    function layout(snapshot, origin) {
-      if (!origin || !Number.isFinite(origin.x) || !Number.isFinite(origin.y)) throw new Error("node: graph origin is invalid")
-      const roots = new Set(snapshot.roots); const agents = [...snapshot.agents].sort((a, b) => Number(roots.has(b.id)) - Number(roots.has(a.id))); const result = new Map()
-      agents.forEach((agent, index) => {
-        const ring = Math.floor(index / 6); const radius = 172 + ring * 112
-        const angle = -Math.PI / 2 + (index % 6) * Math.PI / 3 + (ring % 2 ? Math.PI / 6 : 0)
-        result.set(agent.id, { x: origin.x + Math.cos(angle) * radius - 67, y: origin.y + Math.sin(angle) * radius - 23, width: 134, height: 46 })
-      })
+    function layout(nodes, snapshot) {
+      if (!nodes || typeof nodes !== 'object') throw new Error('node: layout nodes are required')
+      const result = new Map()
+      for (const agent of snapshot.agents) {
+        const position = nodes[agent.id]
+        if (!position) throw new Error('node: agent ' + agent.id + ' has no layout')
+        result.set(agent.id, position)
+      }
       return result
     }
     function inspector(root, agent) {
@@ -90,7 +90,7 @@ window.__ModuleLoader__.load({
     }
     function draw(event) {
       const layer = document.querySelector(".canvas-nodes"); const groups = document.querySelector(".canvas-groups"); const root = document.querySelector(".canvas-root"); if (!layer || !groups || !root) throw new Error("node: canvas layers are not mounted")
-      const snapshot = event.detail.snapshot; const positions = layout(snapshot, event.detail.origin); layer.replaceChildren(); groups.replaceChildren(); const byId = new Map(snapshot.agents.map(agent => [agent.id, agent]))
+      const snapshot = event.detail.snapshot; const positions = layout(event.detail.nodes, snapshot); layer.replaceChildren(); groups.replaceChildren(); const byId = new Map(snapshot.agents.map(agent => [agent.id, agent]))
       if (selectedAgentId !== undefined && !byId.has(selectedAgentId)) selectedAgentId = undefined
       snapshot.groups.forEach(group => { const members = group.memberIds.map(id => byId.get(id)); if (members.some(agent => !agent)) throw new Error("node: group " + group.id + " references an unknown agent"); const nodes = members.map(agent => positions.get(agent.id)); if (nodes.some(item => !item)) throw new Error("node: group " + group.id + " has no visual position"); const x = Math.min(...nodes.map(item => item.x)) - 22; const y = Math.min(...nodes.map(item => item.y)) - 30; const width = Math.max(...nodes.map(item => item.x + item.width)) - x + 22; const height = Math.max(...nodes.map(item => item.y + item.height)) - y + 30; const box = h("div", { className: "canvas-group", style: "left:" + x + "px;top:" + y + "px;width:" + width + "px;height:" + height + "px" }, h("div", { className: "canvas-group-label" }, text("Group " + group.id))); box.onclick = () => document.dispatchEvent(new CustomEvent("singularity:group", { detail: group })); groups.append(box) })
       snapshot.agents.forEach(agent => { const position = positions.get(agent.id); if (!position) throw new Error("node: agent " + agent.id + " has no visual position"); const item = h("article", { className: "canvas-node", dataset: { agentId: agent.id, shape: "card", status: agent.status, unread: "false", selected: String(agent.id === selectedAgentId) }, style: "left:" + position.x + "px;top:" + position.y + "px;width:" + position.width + "px;height:" + position.height + "px" }, h("span", { className: "canvas-node-unread" }), h("div", { className: "canvas-node-name" }, text(agent.name)), h("div", { className: "canvas-node-meta" }, h("span", {}, h("span", { className: "canvas-dot", dataset: { status: agent.status } }), text(agent.status)), h("span", {}, text(agent.routerFor ? "router" : "agent")))); const report = h("button", { className: "canvas-node-report", title: "Open report", "aria-label": "Open report" }, text("i")); report.onclick = event => { event.stopPropagation(); document.dispatchEvent(new CustomEvent("singularity:report", { detail: agent })) }; item.onclick = () => { document.dispatchEvent(new CustomEvent("singularity:unread", { detail: { agentId: agent.id, unread: false } })); select(agent, root, sessionService) }; layer.append(item) })

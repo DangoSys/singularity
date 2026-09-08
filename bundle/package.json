@@ -31,7 +31,9 @@
   },
   "dependencies": {
     "@dangosys/dsh-singularity-graph": "workspace:*",
+    "@dangosys/dsh-singularity-layout": "workspace:*",
     "@dangosys/dsh-singularity-agent-runtime": "workspace:*",
+    "@dangosys/dsh-singularity-agent": "workspace:*",
     "@dangosys/dsh-singularity-graph-web": "workspace:*",
     "@dangosys/dsh-singularity-canvas-view": "workspace:*",
     "@dangosys/dsh-singularity-canvas-node": "workspace:*",

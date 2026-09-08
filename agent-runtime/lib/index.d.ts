@@ -2,7 +2,8 @@ import { Context, Service } from "@deepseek-ai/cordis";
 import { ContentBlock } from "@deepseek-ai/dsh-llm";
 import { Session, SessionId as SessionId$1 } from "@deepseek-ai/dsh-session";
 import { Agent, AgentHandle, AgentOptions } from "@deepseek-ai/dsh-agent";
-import { CanvasNode, GroupNode } from "@dangosys/dsh-singularity-graph";
+import { GroupNode } from "@dangosys/dsh-singularity-graph";
+import { CanvasNode } from "@dangosys/dsh-singularity-layout";
 
 //#region src/types.d.ts
 declare module '@deepseek-ai/cordis' {
@@ -30,14 +31,12 @@ interface SessionVisibility {
 interface RootRequest {
   readonly sessionId: SessionId$1;
   readonly agentOptions?: AgentOptions;
-  readonly node: CanvasNode;
 }
 interface SpawnRequest {
   readonly sessionId: SessionId$1;
   readonly name: string;
   readonly prompt: readonly ContentBlock[];
   readonly agentOptions?: AgentOptions;
-  readonly node: CanvasNode;
   readonly signal?: AbortSignal;
 }
 interface GroupRequest {
@@ -58,10 +57,12 @@ interface RelayRequest {
 declare class AgentRuntime extends Service {
   static inject: string[];
   private readonly owned;
+  private readonly roots;
   private readonly handles;
   private readonly transcripts;
   constructor(ctx: Context);
   createRoot(request: RootRequest): Promise<AgentHandle>;
+  promoteRoot(agent: Agent): Promise<void>;
   spawn(parent: Agent, request: SpawnRequest): Promise<AgentHandle>;
   destroySession(sessionId: string): Promise<void>;
   createGroup(router: Agent, request: GroupRequest): Promise<GroupHandle>;

@@ -4,27 +4,22 @@ import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import { SessionId } from "@deepseek-ai/dsh-session";
 
 //#region src/index.ts
-const ROOT_NODE = {
-	x: 80,
-	y: 80,
-	width: 168,
-	height: 76,
-	shape: "card"
-};
 var AgentRuntime = class extends Service {
 	static inject = [
 		"agentDefaultModel",
 		"agents",
 		"graph",
+		"layout",
 		"sessions",
 		"sessionPersistence"
 	];
 	owned = /* @__PURE__ */ new Set();
+	roots = /* @__PURE__ */ new Set();
 	handles = /* @__PURE__ */ new Map();
 	transcripts = /* @__PURE__ */ new Map();
 	constructor(ctx) {
 		super(ctx, "agentRuntime");
-		ctx.provide("sessionVisibility", { isVisible: (sessionId) => !this.owned.has(sessionId) });
+		ctx.provide("sessionVisibility", { isVisible: (sessionId) => !this.owned.has(sessionId) || this.roots.has(sessionId) });
 		ctx.on("agent/status", ({ agent, status }) => {
 			if (this.owned.has(agent.id)) ctx.graph.setStatus(agent.id, status);
 		});
@@ -56,31 +51,27 @@ var AgentRuntime = class extends Service {
 		ctx.effect(async () => {
 			const snapshot = await ctx.graph.snapshot();
 			try {
-				if (snapshot.roots.length === 0) await this.createRoot({
-					sessionId: SessionId("root"),
-					node: ROOT_NODE
-				});
-				else {
-					for (const sessionId of snapshot.roots) if (snapshot.agents.find((item) => item.id === sessionId)?.node === void 0) await ctx.graph.setNode(sessionId, ROOT_NODE);
-					for (const sessionId of snapshot.roots) {
-						if (ctx.agents.get(sessionId) !== void 0) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`);
-						this.owned.add(sessionId);
-						try {
-							const handle = await ctx.agents.resume({
-								resumeSessionId: sessionId,
-								agentOptions: this.ctx.agentDefaultModel.currentSelection()
-							});
-							this.handles.set(sessionId, handle);
-						} catch (error) {
-							this.owned.delete(sessionId);
-							throw error;
-						}
+				for (const sessionId of snapshot.roots) {
+					if (ctx.agents.get(sessionId) !== void 0) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`);
+					this.owned.add(sessionId);
+					this.roots.add(sessionId);
+					try {
+						const handle = await ctx.agents.resume({
+							resumeSessionId: sessionId,
+							agentOptions: this.ctx.agentDefaultModel.currentSelection()
+						});
+						this.handles.set(sessionId, handle);
+					} catch (error) {
+						this.owned.delete(sessionId);
+						this.roots.delete(sessionId);
+						throw error;
 					}
 				}
 			} catch (error) {
 				await Promise.all([...this.handles.values()].map((handle) => handle.dispose()));
 				this.handles.clear();
 				this.owned.clear();
+				this.roots.clear();
 				throw error;
 			}
 			return () => {};
@@ -106,15 +97,33 @@ var AgentRuntime = class extends Service {
 			await this.ctx.graph.addAgent({
 				id: handle.agent.id,
 				name: "Singularity",
-				status: "idle",
-				node: request.node
+				status: "idle"
 			}, true);
+			this.roots.add(handle.agent.id);
 			this.handles.set(handle.agent.id, handle);
 			return handle;
 		} catch (error) {
 			this.owned.delete(request.sessionId);
 			this.owned.delete(handle.agent.id);
+			this.roots.delete(handle.agent.id);
 			await handle.dispose();
+			throw error;
+		}
+	}
+	async promoteRoot(agent) {
+		this.live(agent);
+		if (this.owned.has(agent.id)) throw new Error(`agent-runtime: agent "${agent.id}" is already owned`);
+		this.owned.add(agent.id);
+		this.roots.add(agent.id);
+		try {
+			await this.ctx.graph.addAgent({
+				id: agent.id,
+				name: "Singularity",
+				status: "idle"
+			}, true);
+		} catch (error) {
+			this.owned.delete(agent.id);
+			this.roots.delete(agent.id);
 			throw error;
 		}
 	}
@@ -145,8 +154,7 @@ var AgentRuntime = class extends Service {
 				agent: {
 					id: handle.agent.id,
 					name: request.name,
-					status: "idle",
-					node: request.node
+					status: "idle"
 				}
 			}, {
 				kind: "edge/add",
@@ -180,7 +188,9 @@ var AgentRuntime = class extends Service {
 		});
 		this.handles.delete(id);
 		this.owned.delete(id);
+		this.roots.delete(id);
 		await handle.dispose();
+		await this.ctx.layout.remove(id);
 	}
 	async createGroup(router, request) {
 		this.live(router);

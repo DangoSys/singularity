@@ -16,13 +16,11 @@ none
 
 ### Web APIs
 
-1. GET `/singular/graph`: GraphSnapshot JSON.
-
-2. GET `/singular/events`: SSE for graph and `pr-chat/path` / `pr-chat/sent` events.
-
-3. GET `/singular/transcript?group=`: group transcript events.
-
-4. GET `/singular/notices`: SSE agent status notices.
+1. GET `/singularity/graph`: GraphSnapshot JSON.
+2. GET `/singularity/layout`: LayoutSnapshot JSON.
+3. GET `/singularity/events`: SSE for graph, layout, and `pr-chat/path` / `pr-chat/sent` events.
+4. GET `/singularity/transcript?group=`: group transcript events.
+5. GET `/singularity/notices`: SSE agent status notices.
 
 ### Service state
 

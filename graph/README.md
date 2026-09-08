@@ -20,6 +20,6 @@ none
 
 ### Service state
 
-1. ctx.graph: snapshot / addAgent / setStatus / setNode / addGroup / addMember / addEdge / commit
+1. ctx.graph: snapshot / addAgent / setStatus / addGroup / addMember / addEdge / commit
 
 2. event `graph/change`: emit GraphSnapshot after commit

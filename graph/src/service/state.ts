@@ -1,5 +1,5 @@
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import type { AgentNode, CanvasNode, GraphEdge, GraphEvent, GraphSnapshot, GroupNode } from '../types.ts'
+import type { AgentNode, GraphEdge, GraphEvent, GraphSnapshot, GroupNode } from '../types.ts'
 
 function copy<T>(value: T): T {
   return structuredClone(value)
@@ -25,7 +25,6 @@ export class GraphState {
   apply(event: GraphEvent): void {
     switch (event.kind) {
       case 'agent/add': this.addAgent(event.agent, event.root === true); return
-      case 'agent/node': this.setNode(event.agentId, event.node); return
       case 'agent/status': this.status(event.agentId, event.status); return
       case 'group/add': this.addGroup(event.group); return
       case 'member/add': this.addMember(event.groupId, event.agentId); return
@@ -38,7 +37,6 @@ export class GraphState {
     if (typeof agent.id !== 'string' || agent.id.length === 0) throw new Error('graph: agent id must be a non-empty string')
     if (typeof agent.name !== 'string' || agent.name.length === 0) throw new Error(`graph: agent "${agent.id}" name must be non-empty`)
     if (!['idle', 'running', 'waiting', 'done', 'failed'].includes(agent.status)) throw new Error(`graph: invalid status "${String(agent.status)}"`)
-    if (agent.node !== undefined) this.node(agent.node, agent.id)
     if (this.value.agents.some(item => item.id === agent.id)) throw new Error(`graph: agent "${agent.id}" already exists`)
     if (agent.memberOf !== undefined || agent.routerFor !== undefined) throw new Error('graph: agent relationships must use group events')
     this.value = { ...this.value, agents: [...this.value.agents, copy(agent)], roots: root ? [...this.value.roots, agent.id] : this.value.roots }
@@ -48,12 +46,6 @@ export class GraphState {
     const agent = this.agent(id)
     if (agent.status === status) throw new Error(`graph: agent "${id}" already has status "${status}"`)
     this.value = { ...this.value, agents: this.value.agents.map(item => item.id === id ? { ...item, status } : item) }
-  }
-
-  private setNode(id: SessionId, node: CanvasNode): void {
-    const agent = this.agent(id)
-    this.node(node, id)
-    this.value = { ...this.value, agents: this.value.agents.map(item => item.id === agent.id ? { ...item, node: copy(node) } : item) }
   }
 
   private addGroup(group: GroupNode): void {
@@ -121,13 +113,5 @@ export class GraphState {
     const group = this.value.groups.find(item => item.id === id)
     if (group === undefined) throw new Error(`graph: unknown group "${id}"`)
     return group
-  }
-
-  private node(node: CanvasNode, agentId: SessionId): void {
-    if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) throw new Error(`graph: agent "${agentId}" node position must be finite`)
-    if (!Number.isFinite(node.width) || node.width <= 0 || !Number.isFinite(node.height) || node.height <= 0) {
-      throw new Error(`graph: agent "${agentId}" node size must be positive`)
-    }
-    if (node.shape !== 'card' && node.shape !== 'circle' && node.shape !== 'diamond') throw new Error(`graph: agent "${agentId}" has invalid node shape`)
   }
 }

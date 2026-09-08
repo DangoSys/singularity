@@ -34,7 +34,8 @@
     "@deepseek-ai/dsh-session-persistence": "*"
   },
   "dependencies": {
-    "@dangosys/dsh-singularity-graph": "workspace:*"
+    "@dangosys/dsh-singularity-graph": "workspace:*",
+    "@dangosys/dsh-singularity-layout": "workspace:*"
   },
   "license": "Apache-2.0",
   "devDependencies": {

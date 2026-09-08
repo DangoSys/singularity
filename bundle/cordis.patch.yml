@@ -3,8 +3,12 @@
       name: '@dangosys/dsh-singularity'
     - id: graph
       name: '@dangosys/dsh-singularity-graph'
+    - id: layout
+      name: '@dangosys/dsh-singularity-layout'
     - id: agent-runtime
       name: '@dangosys/dsh-singularity-agent-runtime'
+    - id: singularity-agent
+      name: '@dangosys/dsh-singularity-agent'
     - id: graph-web
       name: '@dangosys/dsh-singularity-graph-web'
     - id: canvas-view

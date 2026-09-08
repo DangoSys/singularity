@@ -7,7 +7,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import { SESSION_FORMAT_VERSION, SessionId as makeSessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionHandle } from '@deepseek-ai/dsh-session-persistence'
-import type { CanvasNode, GraphConfig, GraphEdge, GraphEvent, GraphSnapshot, GroupNode, AgentNode, AgentStatus } from './types.ts'
+import type { GraphConfig, GraphEdge, GraphEvent, GraphSnapshot, GroupNode, AgentNode, AgentStatus } from './types.ts'
 import { GraphState } from './service/state.ts'
 
 export * from './types.ts'
@@ -56,10 +56,6 @@ export class GraphService extends Service {
     await this.commit([{ kind: 'agent/status', agentId, status }])
   }
 
-  async setNode(agentId: SessionId, node: CanvasNode): Promise<void> {
-    await this.commit([{ kind: 'agent/node', agentId, node }])
-  }
-
   async addGroup(group: GroupNode): Promise<void> {
     await this.commit([{ kind: 'group/add', group }])
   }
@@ -96,7 +92,7 @@ export class GraphService extends Service {
     this.handle = listed.length === 0
       ? await ctx.sessionPersistence.create(this.header())
       : await ctx.sessionPersistence.open(this.storeId, 'write')
-    const events = await this.handle.read()
+    const { events } = await this.handle.read()
     for (const event of events) {
       if (event.type !== 'graph/event' || event.ignorable !== true) throw new Error(`graph: invalid persisted event at seq ${event.seq}`)
       const stored = event as StoredEvent

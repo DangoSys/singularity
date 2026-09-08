@@ -7,7 +7,9 @@ const root = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 
 const plugins = [
   'graph',
+  'layout',
   'agent-runtime',
+  'agent-singularity',
   'graph-web',
   'canvas-view',
   'canvas-node',

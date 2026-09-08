@@ -6,7 +6,7 @@
 
 包名：`@dangosys/dsh-singularity-agent-runtime`
 
-依赖：agentDefaultModel, agents, graph, sessions, sessionPersistence
+依赖：agentDefaultModel, agents, graph, layout, sessions, sessionPersistence
 
 依赖的config.yaml配置：无
 
@@ -20,6 +20,6 @@
 
 ### 维护的 Service 状态
 
-1. ctx.agentRuntime：createRoot / spawn / destroySession / createGroup / addMember / handoff / relay / prompt
+1. ctx.agentRuntime：createRoot / promoteRoot / spawn / destroySession / createGroup / addMember / handoff / relay / prompt
 
-2. ctx.sessionVisibility：隐藏 runtime 自建 session
+2. ctx.sessionVisibility：隐藏非 root 的 runtime 自建 session

@@ -21,6 +21,7 @@ export function registerEvents(ctx: Context, broadcast: GraphBroadcast): () => v
       broadcast.clients.add(res)
       req.on('close', () => broadcast.clients.delete(res))
       res.write(`event: graph\ndata: ${JSON.stringify(await ctx.graph.snapshot())}\n\n`)
+      res.write(`event: layout\ndata: ${JSON.stringify(await ctx.layout.snapshot())}\n\n`)
     },
   })
 }

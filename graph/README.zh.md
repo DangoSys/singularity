@@ -20,6 +20,6 @@
 
 ### 维护的 Service 状态
 
-1. ctx.graph：snapshot / addAgent / setStatus / setNode / addGroup / addMember / addEdge / commit
+1. ctx.graph：snapshot / addAgent / setStatus / addGroup / addMember / addEdge / commit
 
 2. 事件 `graph/change`：提交后广播 GraphSnapshot

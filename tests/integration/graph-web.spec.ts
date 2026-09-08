@@ -36,7 +36,7 @@ function mockReq(method: string, url: string): IncomingMessage {
 }
 
 describe('graph-web routes and SSE', () => {
-  it('GET /singular/graph returns snapshot from ctx.graph', async () => {
+  it('GET /singularity/graph returns snapshot from ctx.graph', async () => {
     const snapshot = {
       version: 1 as const,
       id: 'graph-state',
@@ -46,18 +46,19 @@ describe('graph-web routes and SSE', () => {
           id: 'root' as SessionId,
           name: 'Singularity',
           status: 'idle' as const,
-          node: { x: 0, y: 0, width: 1, height: 1, shape: 'card' as const },
         },
       ],
       groups: [],
       edges: [],
     }
+    const layout = { version: 1 as const, id: 'layout-state', nodes: { root: { x: 0, y: 0, width: 1, height: 1, shape: 'card' as const } } }
     const handlers = new Map<string, (req: IncomingMessage, res: ServerResponse) => Promise<void> | void>()
     const listeners = new Map<string, Set<(...args: never[]) => void>>()
     const effects: Array<() => void | (() => void) | Promise<void>> = []
 
     const ctx = {
       graph: { snapshot: async () => snapshot },
+      layout: { snapshot: async () => layout },
       sessions: { get: () => undefined },
       webServer: {
         register: ({ path, handler }: { path: string; handler: (req: IncomingMessage, res: ServerResponse) => void }) => {
@@ -79,13 +80,14 @@ describe('graph-web routes and SSE', () => {
     }
 
     apply(ctx as never)
-    expect(handlers.has('/singular/graph')).toBe(true)
-    expect(handlers.has('/singular/events')).toBe(true)
-    expect(handlers.has('/singular/transcript')).toBe(true)
-    expect(handlers.has('/singular/notices')).toBe(true)
+    expect(handlers.has('/singularity/graph')).toBe(true)
+    expect(handlers.has('/singularity/layout')).toBe(true)
+    expect(handlers.has('/singularity/events')).toBe(true)
+    expect(handlers.has('/singularity/transcript')).toBe(true)
+    expect(handlers.has('/singularity/notices')).toBe(true)
 
     const res = mockRes()
-    await handlers.get('/singular/graph')!(mockReq('GET', '/singular/graph'), res as unknown as ServerResponse)
+    await handlers.get('/singularity/graph')!(mockReq('GET', '/singularity/graph'), res as unknown as ServerResponse)
     expect(res.statusCode).toBe(200)
     expect(JSON.parse(res.body)).toEqual(snapshot)
   })

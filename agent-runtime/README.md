@@ -6,7 +6,7 @@ Purpose: Manage Singularity root / spawn / group / relay on top of the graph, an
 
 Package: `@dangosys/dsh-singularity-agent-runtime`
 
-Dependencies: agentDefaultModel, agents, graph, sessions, sessionPersistence
+Dependencies: agentDefaultModel, agents, graph, layout, sessions, sessionPersistence
 
 config.yaml: none
 
@@ -20,6 +20,6 @@ none
 
 ### Service state
 
-1. ctx.agentRuntime: createRoot / spawn / destroySession / createGroup / addMember / handoff / relay / prompt
+1. ctx.agentRuntime: createRoot / promoteRoot / spawn / destroySession / createGroup / addMember / handoff / relay / prompt
 
-2. ctx.sessionVisibility: hide runtime-owned sessions
+2. ctx.sessionVisibility: hide spawned (non-root) runtime-owned sessions

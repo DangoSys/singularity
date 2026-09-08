@@ -4,20 +4,10 @@ import { SessionId } from "@deepseek-ai/dsh-session";
 //#region src/types.d.ts
 type AgentStatus = 'idle' | 'running' | 'waiting' | 'done' | 'failed';
 type EdgeKind = 'spawn' | 'handoff';
-type NodeShape = 'card' | 'circle' | 'diamond';
-interface CanvasNode {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-  readonly shape: NodeShape;
-}
 interface AgentNode {
   readonly id: SessionId;
   readonly name: string;
   readonly status: AgentStatus;
-  /** Agent-selected canvas geometry and appearance. Required for new agents. */
-  readonly node?: CanvasNode;
   /** The one parent group this agent is a member of; a router's own group is routerFor. */
   readonly memberOf?: string;
   /** The group this agent leads as router. */
@@ -49,10 +39,6 @@ type GraphEvent = {
   readonly agent: AgentNode;
   readonly root?: true;
 } | {
-  readonly kind: 'agent/node';
-  readonly agentId: SessionId;
-  readonly node: CanvasNode;
-} | {
   readonly kind: 'agent/status';
   readonly agentId: SessionId;
   readonly status: AgentStatus;
@@ -80,14 +66,12 @@ declare class GraphState {
   apply(event: GraphEvent): void;
   private addAgent;
   private status;
-  private setNode;
   private addGroup;
   private addMember;
   private addEdge;
   private reaches;
   private agent;
   private group;
-  private node;
 }
 //#endregion
 //#region src/index.d.ts
@@ -116,7 +100,6 @@ declare class GraphService extends Service {
   snapshot(): Promise<GraphSnapshot>;
   addAgent(agent: AgentNode, root?: boolean): Promise<void>;
   setStatus(agentId: SessionId, status: AgentStatus): Promise<void>;
-  setNode(agentId: SessionId, node: CanvasNode): Promise<void>;
   addGroup(group: GroupNode): Promise<void>;
   addMember(groupId: string, agentId: SessionId): Promise<void>;
   addEdge(edge: GraphEdge): Promise<void>;
@@ -125,4 +108,4 @@ declare class GraphService extends Service {
   private header;
 }
 //#endregion
-export { AgentNode, AgentStatus, CanvasNode, EdgeKind, GraphConfig, GraphEdge, GraphEvent, GraphService, GraphService as default, GraphSnapshot, GraphState, GroupNode, NodeShape };
+export { AgentNode, AgentStatus, EdgeKind, GraphConfig, GraphEdge, GraphEvent, GraphService, GraphService as default, GraphSnapshot, GraphState, GroupNode };

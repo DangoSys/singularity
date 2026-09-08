@@ -16,13 +16,11 @@
 
 ### 注册的 Web API：
 
-1. GET `/singular/graph`：返回 GraphSnapshot JSON。
-
-2. GET `/singular/events`：SSE，推送 graph 与 `pr-chat/path` / `pr-chat/sent` 事件。
-
-3. GET `/singular/transcript?group=`：返回 group transcript 事件。
-
-4. GET `/singular/notices`：SSE，推送 agent 状态 notice。
+1. GET `/singularity/graph`：返回 GraphSnapshot JSON。
+2. GET `/singularity/layout`：返回 LayoutSnapshot JSON。
+3. GET `/singularity/events`：SSE，推送 graph、layout 与 `pr-chat/path` / `pr-chat/sent` 事件。
+4. GET `/singularity/transcript?group=`：返回 group transcript 事件。
+5. GET `/singularity/notices`：SSE，推送 agent 状态 notice。
 
 ### 维护的 Service 状态
 

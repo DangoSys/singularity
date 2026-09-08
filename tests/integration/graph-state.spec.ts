@@ -3,7 +3,6 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import { GraphState } from '../../graph/src/service/state.ts'
 
 const id = (value: string) => value as SessionId
-const node = { x: 10, y: 20, width: 168, height: 76, shape: 'card' as const }
 
 describe('graph topology roundtrip', () => {
   it('builds root, spawn edge, group, and status updates', () => {
@@ -11,11 +10,11 @@ describe('graph topology roundtrip', () => {
     state.apply({
       kind: 'agent/add',
       root: true,
-      agent: { id: id('root'), name: 'Singularity', status: 'idle', node },
+      agent: { id: id('root'), name: 'Singularity', status: 'idle' },
     })
     state.apply({
       kind: 'agent/add',
-      agent: { id: id('child'), name: 'DangoSys/buckyball', status: 'idle', node },
+      agent: { id: id('child'), name: 'DangoSys/buckyball', status: 'idle' },
     })
     state.apply({
       kind: 'edge/add',
@@ -44,7 +43,7 @@ describe('graph topology roundtrip', () => {
     state.apply({
       kind: 'agent/add',
       root: true,
-      agent: { id: id('root'), name: 'Singularity', status: 'idle', node },
+      agent: { id: id('root'), name: 'Singularity', status: 'idle' },
     })
     const frozen = state.clone().snapshot()
     state.apply({ kind: 'agent/status', agentId: id('root'), status: 'running' })

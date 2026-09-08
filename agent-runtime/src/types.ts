@@ -1,7 +1,8 @@
 import type { Agent, AgentHandle, AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { SessionId, Session } from '@deepseek-ai/dsh-session'
-import type { CanvasNode, GraphEvent, GraphSnapshot, GroupNode } from '@dangosys/dsh-singularity-graph'
+import type { GraphEvent, GraphSnapshot, GroupNode } from '@dangosys/dsh-singularity-graph'
+import type { CanvasNode } from '@dangosys/dsh-singularity-layout'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -24,14 +25,12 @@ export interface SessionVisibility {
 export interface RootRequest {
   readonly sessionId: SessionId
   readonly agentOptions?: AgentOptions
-  readonly node: CanvasNode
 }
 export interface SpawnRequest {
   readonly sessionId: SessionId
   readonly name: string
   readonly prompt: readonly ContentBlock[]
   readonly agentOptions?: AgentOptions
-  readonly node: CanvasNode
   readonly signal?: AbortSignal
 }
 export interface GroupRequest {

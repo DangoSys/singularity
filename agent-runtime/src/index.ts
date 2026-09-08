@@ -10,17 +10,22 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { SessionHandle } from '@deepseek-ai/dsh-session-persistence'
-import type { Agent, AgentHandle, CanvasNode, ContentBlock, GraphEvent, GraphSnapshot, GroupNode, Session, GroupHandle, GroupRequest, RelayRequest, RootRequest, SpawnRequest } from './types.ts'
+import type {} from '@dangosys/dsh-singularity-layout'
+import type { Agent, AgentHandle, ContentBlock, GraphEvent, GraphSnapshot, GroupNode, Session, GroupHandle, GroupRequest, RelayRequest, RootRequest, SpawnRequest } from './types.ts'
 export type { AgentOptions, CanvasNode, ContentBlock, GroupHandle, GroupRequest, RelayRequest, RootRequest, SessionVisibility, SpawnRequest } from './types.ts'
-const ROOT_NODE: CanvasNode = { x: 80, y: 80, width: 168, height: 76, shape: 'card' }
+
 export class AgentRuntime extends Service {
-  static inject = ['agentDefaultModel', 'agents', 'graph', 'sessions', 'sessionPersistence']
+  static inject = ['agentDefaultModel', 'agents', 'graph', 'layout', 'sessions', 'sessionPersistence']
   private readonly owned = new Set<SessionId>()
+  private readonly roots = new Set<SessionId>()
   private readonly handles = new Map<SessionId, AgentHandle>()
   private readonly transcripts = new Map<SessionId, Session>()
+
   constructor(ctx: Context) {
     super(ctx, 'agentRuntime')
-    ctx.provide('sessionVisibility', { isVisible: sessionId => !this.owned.has(sessionId) })
+    ctx.provide('sessionVisibility', {
+      isVisible: sessionId => !this.owned.has(sessionId) || this.roots.has(sessionId),
+    })
     ctx.on('agent/status', ({ agent, status }) => {
       if (this.owned.has(agent.id)) void ctx.graph.setStatus(agent.id, status)
     })
@@ -40,37 +45,33 @@ export class AgentRuntime extends Service {
     ctx.effect(async () => {
       const snapshot = await ctx.graph.snapshot()
       try {
-        if (snapshot.roots.length === 0) {
-          await this.createRoot({ sessionId: SessionId('root'), node: ROOT_NODE })
-        } else {
-          for (const sessionId of snapshot.roots) {
-            const agent = snapshot.agents.find(item => item.id === sessionId)
-            if (agent?.node === undefined) await ctx.graph.setNode(sessionId, ROOT_NODE)
-          }
-          for (const sessionId of snapshot.roots) {
-            if (ctx.agents.get(sessionId) !== undefined) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`)
-            this.owned.add(sessionId)
-            try {
-              const handle = await ctx.agents.resume({
-                resumeSessionId: sessionId,
-                agentOptions: this.ctx.agentDefaultModel.currentSelection(),
-              })
-              this.handles.set(sessionId, handle)
-            } catch (error) {
-              this.owned.delete(sessionId)
-              throw error
-            }
+        for (const sessionId of snapshot.roots) {
+          if (ctx.agents.get(sessionId) !== undefined) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`)
+          this.owned.add(sessionId)
+          this.roots.add(sessionId)
+          try {
+            const handle = await ctx.agents.resume({
+              resumeSessionId: sessionId,
+              agentOptions: this.ctx.agentDefaultModel.currentSelection(),
+            })
+            this.handles.set(sessionId, handle)
+          } catch (error) {
+            this.owned.delete(sessionId)
+            this.roots.delete(sessionId)
+            throw error
           }
         }
       } catch (error) {
         await Promise.all([...this.handles.values()].map(handle => handle.dispose()))
         this.handles.clear()
         this.owned.clear()
+        this.roots.clear()
         throw error
       }
       return () => {}
     }, 'agentRuntime: roots')
   }
+
   async createRoot(request: RootRequest): Promise<AgentHandle> {
     this.owned.add(request.sessionId)
     let handle: AgentHandle
@@ -84,13 +85,29 @@ export class AgentRuntime extends Service {
       this.owned.delete(request.sessionId); throw error
     }
     try {
-      await this.ctx.graph.addAgent({ id: handle.agent.id, name: 'Singularity', status: 'idle', node: request.node }, true)
+      await this.ctx.graph.addAgent({ id: handle.agent.id, name: 'Singularity', status: 'idle' }, true)
+      this.roots.add(handle.agent.id)
       this.handles.set(handle.agent.id, handle)
       return handle
     } catch (error) {
-      this.owned.delete(request.sessionId); this.owned.delete(handle.agent.id); await handle.dispose(); throw error
+      this.owned.delete(request.sessionId); this.owned.delete(handle.agent.id); this.roots.delete(handle.agent.id); await handle.dispose(); throw error
     }
   }
+
+  async promoteRoot(agent: Agent): Promise<void> {
+    this.live(agent)
+    if (this.owned.has(agent.id)) throw new Error(`agent-runtime: agent "${agent.id}" is already owned`)
+    this.owned.add(agent.id)
+    this.roots.add(agent.id)
+    try {
+      await this.ctx.graph.addAgent({ id: agent.id, name: 'Singularity', status: 'idle' }, true)
+    } catch (error) {
+      this.owned.delete(agent.id)
+      this.roots.delete(agent.id)
+      throw error
+    }
+  }
+
   async spawn(parent: Agent, request: SpawnRequest): Promise<AgentHandle> {
     this.live(parent)
     this.owned.add(request.sessionId)
@@ -108,7 +125,7 @@ export class AgentRuntime extends Service {
     }
     try {
       const events: GraphEvent[] = [
-        { kind: 'agent/add', agent: { id: handle.agent.id, name: request.name, status: 'idle', node: request.node } },
+        { kind: 'agent/add', agent: { id: handle.agent.id, name: request.name, status: 'idle' } },
         { kind: 'edge/add', edge: { id: `${parent.id}->${handle.agent.id}`, kind: 'spawn', from: parent.id, to: handle.agent.id } },
       ]
       await this.ctx.graph.commit(events)
@@ -122,6 +139,7 @@ export class AgentRuntime extends Service {
       throw error
     }
   }
+
   async destroySession(sessionId: string): Promise<void> {
     const id = SessionId(sessionId)
     const handle = this.handles.get(id) ?? await this.ctx.agents.resume({
@@ -130,8 +148,11 @@ export class AgentRuntime extends Service {
     })
     this.handles.delete(id)
     this.owned.delete(id)
+    this.roots.delete(id)
     await handle.dispose()
+    await this.ctx.layout.remove(id)
   }
+
   async createGroup(router: Agent, request: GroupRequest): Promise<GroupHandle> {
     this.live(router)
     const transcript = router.ctx.sessions.prepare(request.transcriptId)
@@ -154,6 +175,7 @@ export class AgentRuntime extends Service {
       await stored?.close(); detach(); throw error
     }
   }
+
   async addMember(groupId: string, member: Agent): Promise<void> {
     this.live(member)
     const snapshot = await this.ctx.graph.snapshot()
@@ -164,6 +186,7 @@ export class AgentRuntime extends Service {
     await this.ctx.graph.addMember(groupId, member.id)
     this.transcripts.set(member.id, transcript)
   }
+
   async handoff(parent: Agent, child: Agent, brief?: string): Promise<void> {
     this.live(parent)
     this.live(child)
@@ -171,6 +194,7 @@ export class AgentRuntime extends Service {
       id: `${parent.id}->${child.id}:handoff`, kind: 'handoff', from: parent.id, to: child.id, ...(brief === undefined ? {} : { brief }),
     })
   }
+
   async relay(request: RelayRequest): Promise<void> {
     this.live(request.from)
     this.live(request.to)
@@ -189,6 +213,7 @@ export class AgentRuntime extends Service {
       source: { kind: 'relay', from: request.from.id, to: request.to.id },
     }))
   }
+
   async prompt(router: Agent, prompt: readonly ContentBlock[]): Promise<void> {
     this.live(router)
     const snapshot = await this.ctx.graph.snapshot()
@@ -207,6 +232,8 @@ export class AgentRuntime extends Service {
     transcript.append('user/message', message, { surfaceOp: 'append' })
     router.followup(message)
   }
+
   private live(agent: Agent): void { if (this.ctx.agents.get(agent.id) !== agent) throw new Error(`agent-runtime: agent "${agent.id}" is not live`) }
 }
+
 export default AgentRuntime

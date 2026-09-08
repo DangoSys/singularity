@@ -1,10 +1,11 @@
 import { Context } from "@deepseek-ai/cordis";
 
 //#region src/constants.ts
-const GRAPH_PATH = "/singular/graph";
-const EVENTS_PATH = "/singular/events";
-const TRANSCRIPT_PATH = "/singular/transcript";
-const NOTICES_PATH = "/singular/notices";
+const GRAPH_PATH = "/singularity/graph";
+const LAYOUT_PATH = "/singularity/layout";
+const EVENTS_PATH = "/singularity/events";
+const TRANSCRIPT_PATH = "/singularity/transcript";
+const NOTICES_PATH = "/singularity/notices";
 
 //#endregion
 //#region src/web/libs/http.ts
@@ -35,6 +36,7 @@ function registerEvents(ctx, broadcast) {
 			broadcast.clients.add(res);
 			req.on("close", () => broadcast.clients.delete(res));
 			res.write(`event: graph\ndata: ${JSON.stringify(await ctx.graph.snapshot())}\n\n`);
+			res.write(`event: layout\ndata: ${JSON.stringify(await ctx.layout.snapshot())}\n\n`);
 		}
 	});
 }
@@ -51,6 +53,22 @@ function registerGraph(ctx) {
 				return;
 			}
 			send(res, 200, "application/json; charset=utf-8", await ctx.graph.snapshot());
+		}
+	});
+}
+
+//#endregion
+//#region src/web/api/layout.ts
+function registerLayout(ctx) {
+	return ctx.webServer.register({
+		kind: "exact",
+		path: LAYOUT_PATH,
+		handler: async (req, res) => {
+			if (req.method !== "GET") {
+				send(res, 405, "text/plain; charset=utf-8", "method not allowed");
+				return;
+			}
+			send(res, 200, "application/json; charset=utf-8", await ctx.layout.snapshot());
 		}
 	});
 }
@@ -118,6 +136,9 @@ var GraphBroadcast = class {
 		for (const res of this.clients) if (res.destroyed) this.clients.delete(res);
 		else res.write(frame);
 	}
+	publishLayout(snapshot) {
+		this.publishEvent("layout", snapshot);
+	}
 	publish(snapshot) {
 		const frame = `event: graph\ndata: ${JSON.stringify(snapshot)}\n\n`;
 		for (const res of this.clients) if (res.destroyed) this.clients.delete(res);
@@ -149,21 +170,25 @@ var GraphBroadcast = class {
 const name = "graph-web";
 const inject = [
 	"graph",
+	"layout",
 	"sessions",
 	"webServer"
 ];
 function apply(ctx) {
 	const broadcast = new GraphBroadcast();
 	ctx.on("graph/change", (snapshot) => broadcast.publish(snapshot));
+	ctx.on("layout/change", (snapshot) => broadcast.publishLayout(snapshot));
 	ctx.on("pr-chat/path", (event) => broadcast.publishEvent("pr-chat/path", event));
 	ctx.on("pr-chat/sent", (event) => broadcast.publishEvent("pr-chat/sent", event));
 	ctx.effect(() => {
 		const graph = registerGraph(ctx);
+		const layout = registerLayout(ctx);
 		const events = registerEvents(ctx, broadcast);
 		const transcript = registerTranscript(ctx);
 		const notices = registerNotices(ctx, broadcast);
 		return () => {
 			graph();
+			layout();
 			events();
 			transcript();
 			notices();

@@ -28,9 +28,6 @@ var GraphState = class GraphState {
 			case "agent/add":
 				this.addAgent(event.agent, event.root === true);
 				return;
-			case "agent/node":
-				this.setNode(event.agentId, event.node);
-				return;
 			case "agent/status":
 				this.status(event.agentId, event.status);
 				return;
@@ -56,7 +53,6 @@ var GraphState = class GraphState {
 			"done",
 			"failed"
 		].includes(agent.status)) throw new Error(`graph: invalid status "${String(agent.status)}"`);
-		if (agent.node !== void 0) this.node(agent.node, agent.id);
 		if (this.value.agents.some((item) => item.id === agent.id)) throw new Error(`graph: agent "${agent.id}" already exists`);
 		if (agent.memberOf !== void 0 || agent.routerFor !== void 0) throw new Error("graph: agent relationships must use group events");
 		this.value = {
@@ -72,17 +68,6 @@ var GraphState = class GraphState {
 			agents: this.value.agents.map((item) => item.id === id ? {
 				...item,
 				status
-			} : item)
-		};
-	}
-	setNode(id, node) {
-		const agent = this.agent(id);
-		this.node(node, id);
-		this.value = {
-			...this.value,
-			agents: this.value.agents.map((item) => item.id === agent.id ? {
-				...item,
-				node: copy(node)
 			} : item)
 		};
 	}
@@ -156,11 +141,6 @@ var GraphState = class GraphState {
 		if (group === void 0) throw new Error(`graph: unknown group "${id}"`);
 		return group;
 	}
-	node(node, agentId) {
-		if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) throw new Error(`graph: agent "${agentId}" node position must be finite`);
-		if (!Number.isFinite(node.width) || node.width <= 0 || !Number.isFinite(node.height) || node.height <= 0) throw new Error(`graph: agent "${agentId}" node size must be positive`);
-		if (node.shape !== "card" && node.shape !== "circle" && node.shape !== "diamond") throw new Error(`graph: agent "${agentId}" has invalid node shape`);
-	}
 };
 
 //#endregion
@@ -198,13 +178,6 @@ var GraphService = class extends Service {
 			kind: "agent/status",
 			agentId,
 			status
-		}]);
-	}
-	async setNode(agentId, node) {
-		await this.commit([{
-			kind: "agent/node",
-			agentId,
-			node
 		}]);
 	}
 	async addGroup(group) {
@@ -251,7 +224,7 @@ var GraphService = class extends Service {
 		const listed = (await ctx.sessionPersistence.list()).filter((item) => item.header.id === this.storeId);
 		if (listed.length > 1) throw new Error(`graph: duplicate store session "${this.storeId}"`);
 		this.handle = listed.length === 0 ? await ctx.sessionPersistence.create(this.header()) : await ctx.sessionPersistence.open(this.storeId, "write");
-		const events = await this.handle.read();
+		const { events } = await this.handle.read();
 		for (const event of events) {
 			if (event.type !== "graph/event" || event.ignorable !== true) throw new Error(`graph: invalid persisted event at seq ${event.seq}`);
 			const stored = event;

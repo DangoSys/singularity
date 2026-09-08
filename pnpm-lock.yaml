@@ -13,6 +13,9 @@ importers:
       '@dangosys/dsh-singularity-graph':
         specifier: workspace:*
         version: link:../graph
+      '@dangosys/dsh-singularity-layout':
+        specifier: workspace:*
+        version: link:../layout
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
@@ -42,8 +45,45 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
+  agent-singularity:
+    dependencies:
+      '@dangosys/dsh-env-builder':
+        specifier: link:../../env-builder
+        version: link:../../env-builder
+      '@dangosys/dsh-singularity-agent-runtime':
+        specifier: workspace:*
+        version: link:../agent-runtime
+      '@dangosys/dsh-singularity-layout':
+        specifier: workspace:*
+        version: link:../layout
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-llm':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/llm/llm
+        version: link:../../../thirdparty/deepseek-harness/packages/llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
+        version: link:../../../thirdparty/deepseek-harness/packages/core/session
+      '@deepseek-ai/dsh-tools':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/tools
+        version: link:../../../thirdparty/deepseek-harness/packages/core/tools
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   bundle:
     dependencies:
+      '@dangosys/dsh-singularity-agent':
+        specifier: workspace:*
+        version: link:../agent-singularity
       '@dangosys/dsh-singularity-agent-runtime':
         specifier: workspace:*
         version: link:../agent-runtime
@@ -77,6 +117,9 @@ importers:
       '@dangosys/dsh-singularity-graph-web':
         specifier: workspace:*
         version: link:../graph-web
+      '@dangosys/dsh-singularity-layout':
+        specifier: workspace:*
+        version: link:../layout
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
@@ -237,6 +280,9 @@ importers:
       '@dangosys/dsh-singularity-graph':
         specifier: workspace:*
         version: link:../graph
+      '@dangosys/dsh-singularity-layout':
+        specifier: workspace:*
+        version: link:../layout
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
@@ -247,6 +293,27 @@ importers:
       '@deepseek-ai/dsh-session':
         specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
         version: link:../../../thirdparty/deepseek-harness/packages/core/session
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  layout:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-session':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
+        version: link:../../../thirdparty/deepseek-harness/packages/core/session
+      '@deepseek-ai/dsh-session-persistence':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
+        version: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
       '@types/node':
         specifier: ^22.20.0
         version: 22.20.1

@@ -16,7 +16,7 @@ none
 
 ### Web APIs
 
-none (consumes `/singular/notices`)
+none (consumes `/singularity/notices`)
 
 ### Service state
 

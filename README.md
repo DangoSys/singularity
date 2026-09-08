@@ -19,9 +19,11 @@ pnpm dsh plugin --profile web add /absolute/path/to/packages/singularity/bundle
 | Package | Role |
 |---|---|
 | `@dangosys/dsh-singularity` | meta-bundle (`dsh.bundle`) |
-| `@dangosys/dsh-singularity-graph` | mid-layer agent topology store |
-| `@dangosys/dsh-singularity-graph-web` | `/singular/*` HTTP + SSE |
+| `@dangosys/dsh-singularity-graph` | agent topology store |
+| `@dangosys/dsh-singularity-layout` | sessionId → CanvasNode geometry |
 | `@dangosys/dsh-singularity-agent-runtime` | root / spawn / group / relay |
+| `@dangosys/dsh-singularity-agent` | env_create tool |
+| `@dangosys/dsh-singularity-graph-web` | `/singularity/*` HTTP + SSE |
 | `@dangosys/dsh-singularity-canvas-view` | conversation.view canvas shell |
 | `@dangosys/dsh-singularity-canvas-node` | node renderer |
 | `@dangosys/dsh-singularity-canvas-edge` | edge renderer |

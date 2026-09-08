@@ -1,0 +1,3 @@
+- insert:
+    - id: layout
+      name: '@dangosys/dsh-singularity-layout'

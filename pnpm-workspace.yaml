@@ -1,6 +1,8 @@
 packages:
   - 'graph'
+  - 'layout'
   - 'agent-runtime'
+  - 'agent-singularity'
   - 'graph-web'
   - 'canvas-view'
   - 'canvas-node'
