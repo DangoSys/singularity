@@ -44,7 +44,7 @@ function context(roots: readonly SessionId[]) {
         version: 1 as const,
         id: 'graph',
         roots,
-        agents: roots.map(agentId => ({ id: agentId, name: 'Singular', status: 'idle' as const, node: { x: 80, y: 80, width: 168, height: 76, shape: 'card' as const } })),
+        agents: roots.map(agentId => ({ id: agentId, name: 'Singularity', status: 'idle' as const, node: { x: 80, y: 80, width: 168, height: 76, shape: 'card' as const } })),
         groups: [],
         edges: [],
       }),
@@ -79,7 +79,7 @@ describe('AgentRuntime root lifecycle', () => {
       agentOptions: { provider: 'default-provider', model: 'default-model' },
     }])
     expect(state.resumed).toEqual([])
-    expect(state.added).toEqual([{ id: id('root'), name: 'Singular', status: 'idle', node: { x: 80, y: 80, width: 168, height: 76, shape: 'card' } }])
+    expect(state.added).toEqual([{ id: id('root'), name: 'Singularity', status: 'idle', node: { x: 80, y: 80, width: 168, height: 76, shape: 'card' } }])
   })
 
   test('resumes every persisted root without creating a replacement', async () => {
@@ -103,7 +103,7 @@ describe('AgentRuntime root lifecycle', () => {
       version: 1 as const,
       id: 'graph',
       roots: [id('root')],
-      agents: [{ id: id('root'), name: 'Singular', status: 'idle' }],
+      agents: [{ id: id('root'), name: 'Singularity', status: 'idle' }],
       groups: [],
       edges: [],
     }) as never
