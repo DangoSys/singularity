@@ -8,11 +8,75 @@ importers:
 
   .: {}
 
+  agent-runtime:
+    dependencies:
+      '@dangosys/dsh-singularity-graph':
+        specifier: workspace:*
+        version: link:../graph
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/agent
+        version: link:../../../thirdparty/deepseek-harness/packages/core/agent
+      '@deepseek-ai/dsh-agent-default-model':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
+        version: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
+      '@deepseek-ai/dsh-llm':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/llm/llm
+        version: link:../../../thirdparty/deepseek-harness/packages/llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
+        version: link:../../../thirdparty/deepseek-harness/packages/core/session
+      '@deepseek-ai/dsh-session-persistence':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
+        version: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   bundle:
     dependencies:
-      '@dangosys/dsh-singularity-core':
+      '@dangosys/dsh-singularity-agent-runtime':
         specifier: workspace:*
-        version: link:../core
+        version: link:../agent-runtime
+      '@dangosys/dsh-singularity-canvas-bubble':
+        specifier: workspace:*
+        version: link:../canvas-bubble
+      '@dangosys/dsh-singularity-canvas-chat':
+        specifier: workspace:*
+        version: link:../canvas-chat
+      '@dangosys/dsh-singularity-canvas-edge':
+        specifier: workspace:*
+        version: link:../canvas-edge
+      '@dangosys/dsh-singularity-canvas-human':
+        specifier: workspace:*
+        version: link:../canvas-human
+      '@dangosys/dsh-singularity-canvas-node':
+        specifier: workspace:*
+        version: link:../canvas-node
+      '@dangosys/dsh-singularity-canvas-report':
+        specifier: workspace:*
+        version: link:../canvas-report
+      '@dangosys/dsh-singularity-canvas-sticky':
+        specifier: workspace:*
+        version: link:../canvas-sticky
+      '@dangosys/dsh-singularity-canvas-view':
+        specifier: workspace:*
+        version: link:../canvas-view
+      '@dangosys/dsh-singularity-graph':
+        specifier: workspace:*
+        version: link:../graph
+      '@dangosys/dsh-singularity-graph-web':
+        specifier: workspace:*
+        version: link:../graph-web
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
@@ -27,29 +91,162 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
-  core:
+  canvas-bubble:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
         version: link:../../../thirdparty/deepseek-harness/vendor/cordis
-      '@deepseek-ai/dsh-agent':
-        specifier: link:../../../thirdparty/deepseek-harness/packages/core/agent
-        version: link:../../../thirdparty/deepseek-harness/packages/core/agent
-      '@deepseek-ai/dsh-agent-default-model':
-        specifier: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
-        version: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
-      '@deepseek-ai/dsh-host-webserver':
-        specifier: link:../../../thirdparty/deepseek-harness/packages/host/webserver
-        version: link:../../../thirdparty/deepseek-harness/packages/host/webserver
-      '@deepseek-ai/dsh-llm':
-        specifier: link:../../../thirdparty/deepseek-harness/packages/llm/llm
-        version: link:../../../thirdparty/deepseek-harness/packages/llm/llm
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  canvas-chat:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  canvas-edge:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  canvas-human:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  canvas-node:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  canvas-report:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  canvas-sticky:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  canvas-view:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  graph:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
       '@deepseek-ai/dsh-session':
         specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
         version: link:../../../thirdparty/deepseek-harness/packages/core/session
       '@deepseek-ai/dsh-session-persistence':
         specifier: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
         version: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  graph-web:
+    dependencies:
+      '@dangosys/dsh-singularity-graph':
+        specifier: workspace:*
+        version: link:../graph
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/host/webserver
+        version: link:../../../thirdparty/deepseek-harness/packages/host/webserver
+      '@deepseek-ai/dsh-session':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
+        version: link:../../../thirdparty/deepseek-harness/packages/core/session
       '@types/node':
         specifier: ^22.20.0
         version: 22.20.1

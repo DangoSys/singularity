@@ -2,11 +2,6 @@
 
 Singularity graph runtime workspace for DeepSeek Harness.
 
-| Package | Role |
-|---|---|
-| `@dangosys/dsh-singularity` | meta-bundle (`dsh.bundle`) |
-| `@dangosys/dsh-singularity-core` | runtime + web client |
-
 Install into a profile:
 
 ```sh
@@ -19,17 +14,28 @@ Local checkout:
 pnpm dsh plugin --profile web add /absolute/path/to/packages/singularity/bundle
 ```
 
-## Develop
+## Packages
+
+| Package | Role |
+|---|---|
+| `@dangosys/dsh-singularity` | meta-bundle (`dsh.bundle`) |
+| `@dangosys/dsh-singularity-graph` | mid-layer agent topology store |
+| `@dangosys/dsh-singularity-graph-web` | `/singular/*` HTTP + SSE |
+| `@dangosys/dsh-singularity-agent-runtime` | root / spawn / group / relay |
+| `@dangosys/dsh-singularity-canvas-view` | conversation.view canvas shell |
+| `@dangosys/dsh-singularity-canvas-node` | node renderer |
+| `@dangosys/dsh-singularity-canvas-edge` | edge renderer |
+| `@dangosys/dsh-singularity-canvas-sticky` | sticky notes |
+| `@dangosys/dsh-singularity-canvas-report` | report overlay |
+| `@dangosys/dsh-singularity-canvas-chat` | chat surface |
+| `@dangosys/dsh-singularity-canvas-human` | human-in-the-loop UI |
+| `@dangosys/dsh-singularity-canvas-bubble` | notice bubbles |
+
+## Develop (as ruyi submodule)
+
+`devDependencies` link `@deepseek-ai/*` into `ruyi/thirdparty/deepseek-harness`. From this directory:
 
 ```sh
 pnpm install
 pnpm build
-```
-
-## Publish
-
-```sh
-pnpm install && pnpm build
-pnpm --filter @dangosys/dsh-singularity-core publish --access public
-pnpm --filter @dangosys/dsh-singularity publish --access public
 ```

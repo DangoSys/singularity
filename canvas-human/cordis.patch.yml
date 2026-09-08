@@ -1,0 +1,3 @@
+- insert:
+    - id: canvas-human
+      name: '@dangosys/dsh-singularity-canvas-human'

@@ -1,0 +1,3 @@
+- insert:
+    - id: canvas-bubble
+      name: '@dangosys/dsh-singularity-canvas-bubble'

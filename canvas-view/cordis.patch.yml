@@ -1,0 +1,3 @@
+- insert:
+    - id: canvas-view
+      name: '@dangosys/dsh-singularity-canvas-view'

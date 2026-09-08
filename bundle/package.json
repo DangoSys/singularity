@@ -30,7 +30,17 @@
     "@deepseek-ai/cordis": "*"
   },
   "dependencies": {
-    "@dangosys/dsh-singularity-core": "workspace:*"
+    "@dangosys/dsh-singularity-graph": "workspace:*",
+    "@dangosys/dsh-singularity-agent-runtime": "workspace:*",
+    "@dangosys/dsh-singularity-graph-web": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-view": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-node": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-edge": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-sticky": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-report": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-chat": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-human": "workspace:*",
+    "@dangosys/dsh-singularity-canvas-bubble": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:../../../thirdparty/deepseek-harness/vendor/cordis",

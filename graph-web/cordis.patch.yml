@@ -1,0 +1,3 @@
+- insert:
+    - id: graph-web
+      name: '@dangosys/dsh-singularity-graph-web'

@@ -1,0 +1,3 @@
+- insert:
+    - id: canvas-sticky
+      name: '@dangosys/dsh-singularity-canvas-sticky'

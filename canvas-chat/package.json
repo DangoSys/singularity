@@ -1,0 +1,55 @@
+{
+  "name": "@dangosys/dsh-singularity-canvas-chat",
+  "description": "Singularity canvas chat surface",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./client": "./lib/client.js"
+  },
+  "files": [
+    "lib/",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "build": "tsdown && node scripts/build-client.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {},
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.15.0",
+    "typescript": "^5.9.0",
+    "@deepseek-ai/cordis": "link:../../../thirdparty/deepseek-harness/vendor/cordis"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DangoSys/singularity.git",
+    "directory": "canvas-chat"
+  },
+  "homepage": "https://github.com/DangoSys/singularity",
+  "bugs": {
+    "url": "https://github.com/DangoSys/singularity/issues"
+  }
+}

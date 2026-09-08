@@ -1,0 +1,3 @@
+- insert:
+    - id: canvas-edge
+      name: '@dangosys/dsh-singularity-canvas-edge'

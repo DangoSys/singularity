@@ -1,0 +1,3 @@
+- insert:
+    - id: canvas-node
+      name: '@dangosys/dsh-singularity-canvas-node'

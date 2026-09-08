@@ -1,0 +1,57 @@
+{
+  "name": "@dangosys/dsh-singularity-graph-web",
+  "description": "HTTP and SSE surface for the Singularity graph",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "lib/",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-host-webserver": "*",
+    "@deepseek-ai/dsh-session": "*"
+  },
+  "dependencies": {
+    "@dangosys/dsh-singularity-graph": "workspace:*"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.15.0",
+    "typescript": "^5.9.0",
+    "@deepseek-ai/cordis": "link:../../../thirdparty/deepseek-harness/vendor/cordis",
+    "@deepseek-ai/dsh-host-webserver": "link:../../../thirdparty/deepseek-harness/packages/host/webserver",
+    "@deepseek-ai/dsh-session": "link:../../../thirdparty/deepseek-harness/packages/core/session"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DangoSys/singularity.git",
+    "directory": "graph-web"
+  },
+  "homepage": "https://github.com/DangoSys/singularity",
+  "bugs": {
+    "url": "https://github.com/DangoSys/singularity/issues"
+  }
+}
