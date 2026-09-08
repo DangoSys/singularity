@@ -79,7 +79,7 @@ export class AgentRuntime extends Service {
       this.owned.delete(request.sessionId); throw error
     }
     try {
-      await this.ctx.graph.addAgent({ id: handle.agent.id, name: 'Singular', status: 'idle', node: request.node }, true)
+      await this.ctx.graph.addAgent({ id: handle.agent.id, name: 'Session', status: 'idle', node: request.node }, true)
       this.handles.set(handle.agent.id, handle)
       return handle
     } catch (error) {

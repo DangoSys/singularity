@@ -20,7 +20,7 @@ window.__ModuleLoader__.load({
     }
     function inspector(root, agent) {
       root.querySelector(".canvas-inspector")?.remove(); if (!agent) return
-      root.append(h("aside", { className: "canvas-inspector" }, h("div", { className: "canvas-inspector-title" }, text(agent.name)), h("div", { className: "canvas-inspector-subtitle" }, text("spawned from singularity · " + agent.status))))
+      root.append(h("aside", { className: "canvas-inspector" }, h("div", { className: "canvas-inspector-title" }, text(agent.name)), h("div", { className: "canvas-inspector-subtitle" }, text("Session · " + agent.status))))
     }
     function blocksText(content) {
       if (!Array.isArray(content)) return ''
