@@ -105,7 +105,7 @@ var AgentRuntime = class extends Service {
 		try {
 			await this.ctx.graph.addAgent({
 				id: handle.agent.id,
-				name: "Session",
+				name: "Singularity",
 				status: "idle",
 				node: request.node
 			}, true);

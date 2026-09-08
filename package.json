@@ -1,63 +1,11 @@
 {
-  "name": "@dangosys/dsh-singularity",
-  "description": "Singularity graph runtime and canvas client bundle for DeepSeek Harness",
+  "name": "@dangosys/dsh-singularity-workspace",
+  "private": true,
   "version": "0.1.0",
-  "publishConfig": {"access": "public"},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/DangoSys/singularity.git"
-  },
   "type": "module",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
-  "exports": {
-    ".": "./lib/index.js",
-    "./agent": "./lib/agent/index.js",
-    "./env-grow": "./lib/env-grow/index.js",
-    "./graph": "./lib/graph/index.js",
-    "./web": "./lib/web/index.js",
-    "./canvas": "./lib/canvas/index.js",
-    "./node": "./lib/node/index.js",
-    "./connect": "./lib/connect/index.js",
-    "./sticky": "./lib/sticky/index.js",
-    "./report": "./lib/report/index.js",
-    "./chat": "./lib/chat/index.js",
-    "./human": "./lib/human/index.js",
-    "./bubble": "./lib/bubble/index.js",
-    "./client": "./lib/client.js",
-    "./package.json": "./package.json"
-  },
-  "files": ["lib/", "cordis.patch.yml"],
+  "packageManager": "pnpm@10.15.0",
   "scripts": {
-    "build": "tsdown && node scripts/build-client.mjs"
-  },
-  "dsh": {
-    "bundle": {"patch": "./cordis.patch.yml"},
-    "client": {
-      "platform": "web",
-      "inject": ["@deepseek-ai/dsh-client-ui-sidebar"]
-    }
-  },
-  "peerDependencies": {
-    "@deepseek-ai/cordis": "*",
-    "@deepseek-ai/dsh-agent": "*",
-    "@deepseek-ai/dsh-agent-default-model": "*",
-    "@deepseek-ai/dsh-host-webserver": "*",
-    "@deepseek-ai/dsh-llm": "*",
-    "@deepseek-ai/dsh-session": "*",
-    "@deepseek-ai/dsh-session-persistence": "*"
-  },
-  "devDependencies": {
-    "@deepseek-ai/cordis": "link:../../thirdparty/deepseek-harness/vendor/cordis",
-    "@deepseek-ai/dsh-agent": "link:../../thirdparty/deepseek-harness/packages/core/agent",
-    "@deepseek-ai/dsh-agent-default-model": "link:../../thirdparty/deepseek-harness/packages/core/agent-default-model",
-    "@deepseek-ai/dsh-host-webserver": "link:../../thirdparty/deepseek-harness/packages/host/webserver",
-    "@deepseek-ai/dsh-llm": "link:../../thirdparty/deepseek-harness/packages/llm/llm",
-    "@deepseek-ai/dsh-session": "link:../../thirdparty/deepseek-harness/packages/core/session",
-    "@deepseek-ai/dsh-session-persistence": "link:../../thirdparty/deepseek-harness/packages/session/session-persistence",
-    "@types/node": "^22.20.0",
-    "tsdown": "^0.15.0",
-    "typescript": "^5.9.0"
-  },
-  "license": "Apache-2.0"
+    "build": "pnpm -r run build",
+    "pack:check": "pnpm -r exec pnpm pack --dry-run"
+  }
 }

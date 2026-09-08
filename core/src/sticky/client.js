@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/sticky',
+  id: '@dangosys/dsh-singularity-core/sticky',
   factory: () => {
     const module = { exports: {} }
     const STYLE_ID = 'dsh-sticky-style'

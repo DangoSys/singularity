@@ -6,29 +6,50 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  bundle:
+    dependencies:
+      '@dangosys/dsh-singularity-core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@deepseek-ai/cordis':
-        specifier: link:../../thirdparty/deepseek-harness/vendor/cordis
-        version: link:../../thirdparty/deepseek-harness/vendor/cordis
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsdown:
+        specifier: ^0.15.0
+        version: 0.15.12(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  core:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../thirdparty/deepseek-harness/vendor/cordis
+        version: link:../../../thirdparty/deepseek-harness/vendor/cordis
       '@deepseek-ai/dsh-agent':
-        specifier: link:../../thirdparty/deepseek-harness/packages/core/agent
-        version: link:../../thirdparty/deepseek-harness/packages/core/agent
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/agent
+        version: link:../../../thirdparty/deepseek-harness/packages/core/agent
       '@deepseek-ai/dsh-agent-default-model':
-        specifier: link:../../thirdparty/deepseek-harness/packages/core/agent-default-model
-        version: link:../../thirdparty/deepseek-harness/packages/core/agent-default-model
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
+        version: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
       '@deepseek-ai/dsh-host-webserver':
-        specifier: link:../../thirdparty/deepseek-harness/packages/host/webserver
-        version: link:../../thirdparty/deepseek-harness/packages/host/webserver
+        specifier: link:../../../thirdparty/deepseek-harness/packages/host/webserver
+        version: link:../../../thirdparty/deepseek-harness/packages/host/webserver
       '@deepseek-ai/dsh-llm':
-        specifier: link:../../thirdparty/deepseek-harness/packages/llm/llm
-        version: link:../../thirdparty/deepseek-harness/packages/llm/llm
+        specifier: link:../../../thirdparty/deepseek-harness/packages/llm/llm
+        version: link:../../../thirdparty/deepseek-harness/packages/llm/llm
       '@deepseek-ai/dsh-session':
-        specifier: link:../../thirdparty/deepseek-harness/packages/core/session
-        version: link:../../thirdparty/deepseek-harness/packages/core/session
+        specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
+        version: link:../../../thirdparty/deepseek-harness/packages/core/session
       '@deepseek-ai/dsh-session-persistence':
-        specifier: link:../../thirdparty/deepseek-harness/packages/session/session-persistence
-        version: link:../../thirdparty/deepseek-harness/packages/session/session-persistence
+        specifier: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
+        version: link:../../../thirdparty/deepseek-harness/packages/session/session-persistence
       '@types/node':
         specifier: ^22.20.0
         version: 22.20.1
@@ -132,28 +153,24 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@rolldown/binding-linux-arm64-musl@1.0.0-beta.45':
     resolution: {integrity: sha512-tdy8ThO/fPp40B81v0YK3QC+KODOmzJzSUOO37DinQxzlTJ026gqUSOM8tzlVixRbQJltgVDCTYF8HNPRErQTA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@rolldown/binding-linux-x64-gnu@1.0.0-beta.45':
     resolution: {integrity: sha512-lS082ROBWdmOyVY/0YB3JmsiClaWoxvC+dA8/rbhyB9VLkvVEaihLEOr4CYmrMse151C4+S6hCw6oa1iewox7g==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@rolldown/binding-linux-x64-musl@1.0.0-beta.45':
     resolution: {integrity: sha512-Hi73aYY0cBkr1/SvNQqH8Cd+rSV6S9RB5izCv0ySBcRnd/Wfn5plguUoGYwBnhHgFbh6cPw9m2dUVBR6BG1gxA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@rolldown/binding-openharmony-arm64@1.0.0-beta.45':
     resolution: {integrity: sha512-fljEqbO7RHHogNDxYtTzr+GNjlfOx21RUyGmF+NrkebZ8emYYiIqzPxsaMZuRx0rgZmVmliOzEp86/CQFDKhJQ==}

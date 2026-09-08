@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/connect',
+  id: '@dangosys/dsh-singularity-core/connect',
   factory: () => {
     const module = { exports: {} }
     const STYLE_ID = 'dsh-connect-style'

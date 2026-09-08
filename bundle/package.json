@@ -1,0 +1,54 @@
+{
+  "name": "@dangosys/dsh-singularity",
+  "description": "Singularity meta-bundle for DeepSeek Harness",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "pack:check": "pnpm pack --dry-run"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "@dangosys/dsh-singularity-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "link:../../../thirdparty/deepseek-harness/vendor/cordis",
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.15.0",
+    "typescript": "^5.9.0"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DangoSys/singularity.git",
+    "directory": "bundle"
+  },
+  "homepage": "https://github.com/DangoSys/singularity",
+  "bugs": {
+    "url": "https://github.com/DangoSys/singularity/issues"
+  }
+}

@@ -4,8 +4,8 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const names = ['canvas', 'node', 'connect', 'sticky', 'report', 'chat', 'human', 'bubble']
 const bundles = await Promise.all(names.map(name => readFile(resolve(root, `src/${name}/client.js`), 'utf8')))
-const rootId = '@dangosys/dsh-singularity'
-const modules = names.map(name => `@dangosys/dsh-singularity/${name}`)
+const rootId = '@dangosys/dsh-singularity-core'
+const modules = names.map(name => `@dangosys/dsh-singularity-core/${name}`)
 const entry = `window.__ModuleLoader__.load({
   id: ${JSON.stringify(rootId)},
   factory: (require) => {

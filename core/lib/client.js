@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/canvas',
+  id: '@dangosys/dsh-singularity-core/canvas',
   factory: (require) => {
     const module = { exports: {} }
     const React = require('react')
@@ -114,7 +114,7 @@ window.__ModuleLoader__.load({
 })
 
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/node',
+  id: '@dangosys/dsh-singularity-core/node',
   factory: () => {
     const module = { exports: {} }
     const STYLE_ID = 'dsh-node-style'
@@ -223,7 +223,7 @@ window.__ModuleLoader__.load({
 })
 
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/connect',
+  id: '@dangosys/dsh-singularity-core/connect',
   factory: () => {
     const module = { exports: {} }
     const STYLE_ID = 'dsh-connect-style'
@@ -309,7 +309,7 @@ window.__ModuleLoader__.load({
 })
 
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/sticky',
+  id: '@dangosys/dsh-singularity-core/sticky',
   factory: () => {
     const module = { exports: {} }
     const STYLE_ID = 'dsh-sticky-style'
@@ -343,7 +343,7 @@ window.__ModuleLoader__.load({
 })
 
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/report',
+  id: '@dangosys/dsh-singularity-core/report',
   factory: () => {
     const module = { exports: {} }
     function open(event) { const agent = event.detail; const body = document.createElement('pre'); body.textContent = JSON.stringify({ id: agent.id, name: agent.name, status: agent.status, memberOf: agent.memberOf, routerFor: agent.routerFor, node: agent.node }, null, 2); document.dispatchEvent(new CustomEvent('sticky:open', { detail: { id: `report:${agent.id}`, title: `${agent.name} report`, body, target: agent } })) }
@@ -354,12 +354,12 @@ window.__ModuleLoader__.load({
 })
 
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/chat',
+  id: '@dangosys/dsh-singularity-core/chat',
   factory: () => ({ apply() {} }),
 })
 
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/human',
+  id: '@dangosys/dsh-singularity-core/human',
   factory: () => {
     const module = { exports: {} }
     function open(event) { const request = event.detail; const body = document.createElement('div'); const message = document.createElement('p'); message.textContent = request.message; const answer = document.createElement('textarea'); answer.rows = 4; answer.placeholder = 'Response'; const send = document.createElement('button'); send.type = 'button'; send.textContent = 'Respond'; send.onclick = () => { if (!answer.value) throw new Error('human: response is empty'); document.dispatchEvent(new CustomEvent('singularity:human-response', { detail: { ...request, response: answer.value } })); answer.value = '' }; body.append(message, answer, send); document.dispatchEvent(new CustomEvent('sticky:open', { detail: { id: `human:${request.id}`, title: 'Human intervention', body, target: request.agent ?? request } })) }
@@ -370,7 +370,7 @@ window.__ModuleLoader__.load({
 })
 
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/bubble',
+  id: '@dangosys/dsh-singularity-core/bubble',
   factory: () => {
     const module = { exports: {} }
     const queue = []; const names = new Map(); let source; let canvasOpen = false; const h = (tag, props = {}, ...children) => { const node = document.createElement(tag); Object.entries(props).forEach(([key, value]) => { if (key === 'className') node.className = value; else node.setAttribute(key, value) }); for (const child of children) if (child) node.append(child); return node }; const text = value => document.createTextNode(String(value)); const STYLE_ID = 'dsh-bubble-style'; const CSS = `#bubble-queue{position:absolute;right:18px;top:16px;z-index:5;width:280px;max-height:250px;overflow:hidden;background:var(--singularity-surface,var(--color-surface,#fff));color:var(--singularity-text,var(--color-text,#1f2937));border:1px solid var(--singularity-border,var(--color-border,#dbe3ee));border-radius:10px;box-shadow:0 10px 28px color-mix(in srgb,var(--singularity-text,#1f2937) 18%,transparent)}#bubble-queue[hidden]{display:none}.bubble-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--singularity-border,var(--color-border,#dbe3ee));color:var(--singularity-text,var(--color-text,#1f2937));font-weight:700}.bubble-count{min-width:20px;padding:2px 6px;border-radius:10px;background:#ff5d63;color:#08090a;text-align:center;font-size:11px}.bubble-list{max-height:204px;overflow:auto}.bubble-item{display:block;width:100%;padding:10px 12px;border:0;border-bottom:1px solid var(--singularity-border,var(--color-border,#dbe3ee));background:var(--singularity-surface,var(--color-surface,#fff));color:var(--singularity-text,var(--color-text,#1f2937));text-align:left;cursor:pointer;font:12px Inter,ui-sans-serif,system-ui,sans-serif}.bubble-item:hover{background:var(--singularity-surface-muted,var(--color-surface-muted,#f1f5f9))}.bubble-agent{display:block;margin-bottom:3px;font-weight:700}.bubble-text{display:block;color:var(--singularity-muted,var(--color-muted,#64748b));font-size:11px}`
@@ -384,10 +384,10 @@ window.__ModuleLoader__.load({
 })
 
 window.__ModuleLoader__.load({
-  id: "@dangosys/dsh-singularity",
+  id: "@dangosys/dsh-singularity-core",
   factory: (require) => {
     const module = { exports: {} }
-    const plugins = [require("@dangosys/dsh-singularity/canvas"), require("@dangosys/dsh-singularity/node"), require("@dangosys/dsh-singularity/connect"), require("@dangosys/dsh-singularity/sticky"), require("@dangosys/dsh-singularity/report"), require("@dangosys/dsh-singularity/chat"), require("@dangosys/dsh-singularity/human"), require("@dangosys/dsh-singularity/bubble")]
+    const plugins = [require("@dangosys/dsh-singularity-core/canvas"), require("@dangosys/dsh-singularity-core/node"), require("@dangosys/dsh-singularity-core/connect"), require("@dangosys/dsh-singularity-core/sticky"), require("@dangosys/dsh-singularity-core/report"), require("@dangosys/dsh-singularity-core/chat"), require("@dangosys/dsh-singularity-core/human"), require("@dangosys/dsh-singularity-core/bubble")]
     module.exports.apply = (ctx) => { for (const plugin of plugins) plugin.apply(ctx) }
     module.exports.inject = ['slots', 'sessions', 'remote']
     return module.exports

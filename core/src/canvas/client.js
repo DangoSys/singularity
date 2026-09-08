@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/canvas',
+  id: '@dangosys/dsh-singularity-core/canvas',
   factory: (require) => {
     const module = { exports: {} }
     const React = require('react')

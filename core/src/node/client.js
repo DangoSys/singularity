@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@dangosys/dsh-singularity/node',
+  id: '@dangosys/dsh-singularity-core/node',
   factory: () => {
     const module = { exports: {} }
     const STYLE_ID = 'dsh-node-style'
