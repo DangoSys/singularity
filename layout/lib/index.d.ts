@@ -54,13 +54,16 @@ declare module '@deepseek-ai/cordis' {
 }
 declare class LayoutService extends Service {
   static inject: string[];
-  private readonly ready;
-  private readonly storeId;
+  private ready;
+  private storeId;
   private handle;
   private state;
   private nextSeq;
   private writes;
+  private active;
   constructor(ctx: Context, config?: LayoutConfig);
+  currentStoreId(): string;
+  switchStore(rawId: string): Promise<LayoutSnapshot>;
   snapshot(): Promise<LayoutSnapshot>;
   get(sessionId: SessionId): Promise<CanvasNode>;
   set(sessionId: SessionId, node: CanvasNode): Promise<void>;

@@ -3,6 +3,8 @@
       name: '@dangosys/dsh-singularity'
     - id: graph
       name: '@dangosys/dsh-singularity-graph'
+    - id: graphs
+      name: '@dangosys/dsh-singularity-graphs'
     - id: layout
       name: '@dangosys/dsh-singularity-layout'
     - id: agent-runtime
@@ -13,17 +15,3 @@
       name: '@dangosys/dsh-singularity-graph-web'
     - id: canvas-view
       name: '@dangosys/dsh-singularity-canvas-view'
-    - id: canvas-node
-      name: '@dangosys/dsh-singularity-canvas-node'
-    - id: canvas-edge
-      name: '@dangosys/dsh-singularity-canvas-edge'
-    - id: canvas-sticky
-      name: '@dangosys/dsh-singularity-canvas-sticky'
-    - id: canvas-report
-      name: '@dangosys/dsh-singularity-canvas-report'
-    - id: canvas-chat
-      name: '@dangosys/dsh-singularity-canvas-chat'
-    - id: canvas-human
-      name: '@dangosys/dsh-singularity-canvas-human'
-    - id: canvas-bubble
-      name: '@dangosys/dsh-singularity-canvas-bubble'

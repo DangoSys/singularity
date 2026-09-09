@@ -1,6 +1,6 @@
 //#region src/index.ts
 /**
-* Singularity canvas conversation view (server stub + client).
+* Singularity view switch (对话 | Singularity map iframe).
 * @module dsh-singularity-canvas-view
 */
 const name = "canvas-view";

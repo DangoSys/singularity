@@ -19,19 +19,14 @@ pnpm dsh plugin --profile web add /absolute/path/to/packages/singularity/bundle
 | Package | Role |
 |---|---|
 | `@dangosys/dsh-singularity` | meta-bundle (`dsh.bundle`) |
-| `@dangosys/dsh-singularity-graph` | agent topology store |
-| `@dangosys/dsh-singularity-layout` | sessionId → CanvasNode geometry |
+| `@dangosys/dsh-singularity-graph` | per-graph agent topology store |
+| `@dangosys/dsh-singularity-graphs` | graph registry + env binding |
+| `@dangosys/dsh-singularity-layout` | per-graph session geometry |
 | `@dangosys/dsh-singularity-agent-runtime` | root / spawn / group / relay |
-| `@dangosys/dsh-singularity-agent` | env_create tool |
-| `@dangosys/dsh-singularity-graph-web` | `/singularity/*` HTTP + SSE |
-| `@dangosys/dsh-singularity-canvas-view` | conversation.view canvas shell |
-| `@dangosys/dsh-singularity-canvas-node` | node renderer |
-| `@dangosys/dsh-singularity-canvas-edge` | edge renderer |
-| `@dangosys/dsh-singularity-canvas-sticky` | sticky notes |
-| `@dangosys/dsh-singularity-canvas-report` | report overlay |
-| `@dangosys/dsh-singularity-canvas-chat` | chat surface |
-| `@dangosys/dsh-singularity-canvas-human` | human-in-the-loop UI |
-| `@dangosys/dsh-singularity-canvas-bubble` | notice bubbles |
+| `@dangosys/dsh-singularity-agent` | root tools: mark_ready / HITL |
+| `@dangosys/dsh-singularity-graph-web` | `/singularity/*` HTTP + SSE + map static |
+| `@dangosys/dsh-singularity-map` | xyflow map SPA + FocusPanel |
+| `@dangosys/dsh-singularity-canvas-view` | 对话 \| Singularity shell |
 
 ## Develop (as ruyi submodule)
 

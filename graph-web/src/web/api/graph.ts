@@ -12,7 +12,11 @@ export function registerGraph(ctx: Context): () => void {
         send(res, 405, 'text/plain; charset=utf-8', 'method not allowed')
         return
       }
-      send(res, 200, 'application/json; charset=utf-8', await ctx.graph.snapshot())
+      try {
+        send(res, 200, 'application/json; charset=utf-8', await ctx.graph.snapshot())
+      } catch (error) {
+        send(res, 409, 'text/plain; charset=utf-8', error instanceof Error ? error.message : String(error))
+      }
     },
   })
 }

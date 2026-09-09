@@ -81,18 +81,16 @@ describe('AgentRuntime root lifecycle', () => {
     const state = context([])
     new AgentRuntime(state.ctx as never)
     await Promise.resolve()
-    await Promise.resolve()
 
     expect(state.created).toEqual([])
     expect(state.resumed).toEqual([])
     expect(state.added).toEqual([])
   })
 
-  test('resumes every persisted root without creating a replacement', async () => {
+  test('ensureRoot resumes a persisted root without creating a replacement', async () => {
     const state = context([id('root')])
-    new AgentRuntime(state.ctx as never)
-    await Promise.resolve()
-    await Promise.resolve()
+    const runtime = new AgentRuntime(state.ctx as never)
+    await runtime.ensureRoot(id('root'))
 
     expect(state.created).toEqual([])
     expect(state.resumed).toEqual(['root'])
@@ -105,12 +103,10 @@ describe('AgentRuntime root lifecycle', () => {
     expect(state.mounted).toEqual([[{}, 'standard']])
   })
 
-  test('returns an interrupted running root to idle before resuming it', async () => {
+  test('ensureRoot returns an interrupted running root to idle before resuming it', async () => {
     const state = context([id('root')], 'running')
-    new AgentRuntime(state.ctx as never)
-    await Promise.resolve()
-    await Promise.resolve()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const runtime = new AgentRuntime(state.ctx as never)
+    await runtime.ensureRoot(id('root'))
 
     expect(state.statuses).toEqual([[id('root'), 'idle']])
     expect(state.resumed).toEqual(['root'])
@@ -119,8 +115,6 @@ describe('AgentRuntime root lifecycle', () => {
   test('createRoot adds a Singularity agent without layout geometry', async () => {
     const state = context([])
     const runtime = new AgentRuntime(state.ctx as never)
-    await Promise.resolve()
-    await Promise.resolve()
     await runtime.createRoot({ sessionId: id('root') })
     expect(state.created).toEqual(['root'])
     expect(state.createOptions).toEqual([{

@@ -1,5 +1,5 @@
 /**
- * Persist agent topology and expose ctx.graph.
+ * Persist agent topology and expose ctx.graph (switchable store per Singularity graph).
  * @module dsh-singularity-graph
  */
 
@@ -26,25 +26,54 @@ declare module '@deepseek-ai/cordis' {
 
 export class GraphService extends Service {
   static inject = ['sessionPersistence']
-  private readonly ready: Promise<void>
-  private readonly storeId: SessionId
+  private ready: Promise<void>
+  private storeId: SessionId
   private handle: SessionHandle | undefined
   private state: GraphState
   private nextSeq = 0
   private writes = Promise.resolve()
+  private active = false
 
   constructor(ctx: Context, config: GraphConfig = {}) {
     super(ctx, 'graph')
-    const rawId = config.storeId ?? 'graph-state'
+    const rawId = config.storeId ?? 'graph-idle'
     if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`graph: invalid store id "${rawId}"`)
     this.storeId = makeSessionId(rawId)
     this.state = new GraphState(rawId)
-    this.ready = this.open(ctx)
+    this.ready = this.open(ctx, this.storeId)
     ctx.effect(() => () => this.ready.then(() => this.handle?.close()), 'graph:persistence')
+  }
+
+  currentStoreId(): string {
+    return this.storeId
+  }
+
+  async switchStore(rawId: string): Promise<GraphSnapshot> {
+    if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`graph: invalid store id "${rawId}"`)
+    const nextId = makeSessionId(rawId)
+    if (this.active && nextId === this.storeId) return this.state.snapshot()
+    const run = this.writes.then(async () => {
+      await this.ready
+      await this.handle?.flush()
+      this.handle?.close()
+      this.handle = undefined
+      this.storeId = nextId
+      this.state = new GraphState(rawId)
+      this.nextSeq = 0
+      this.ready = this.open(this.ctx, nextId)
+      await this.ready
+      this.active = true
+      const snap = this.state.snapshot()
+      this.ctx.emit('graph/change', snap)
+      return snap
+    })
+    this.writes = run.then(() => undefined)
+    return run
   }
 
   async snapshot(): Promise<GraphSnapshot> {
     await this.ready
+    if (!this.active) throw new Error('graph: no graph selected')
     return this.state.snapshot()
   }
 
@@ -70,6 +99,7 @@ export class GraphService extends Service {
 
   async commit(events: readonly GraphEvent[]): Promise<void> {
     if (events.length === 0) throw new Error('graph: cannot commit an empty event batch')
+    if (!this.active) throw new Error('graph: no graph selected')
     const run = this.writes.then(async () => {
       await this.ready
       const next = this.state.clone()
@@ -86,12 +116,12 @@ export class GraphService extends Service {
     return run
   }
 
-  private async open(ctx: Context): Promise<void> {
-    const listed = (await ctx.sessionPersistence.list()).filter(item => item.header.id === this.storeId)
-    if (listed.length > 1) throw new Error(`graph: duplicate store session "${this.storeId}"`)
+  private async open(ctx: Context, storeId: SessionId): Promise<void> {
+    const listed = (await ctx.sessionPersistence.list()).filter(item => item.header.id === storeId)
+    if (listed.length > 1) throw new Error(`graph: duplicate store session "${storeId}"`)
     this.handle = listed.length === 0
-      ? await ctx.sessionPersistence.create(this.header())
-      : await ctx.sessionPersistence.open(this.storeId, 'write')
+      ? await ctx.sessionPersistence.create(this.header(storeId))
+      : await ctx.sessionPersistence.open(storeId, 'write')
     const { events } = await this.handle.read()
     for (const event of events) {
       if (event.type !== 'graph/event' || event.ignorable !== true) throw new Error(`graph: invalid persisted event at seq ${event.seq}`)
@@ -104,8 +134,8 @@ export class GraphService extends Service {
     await this.handle.flush()
   }
 
-  private header(): SessionHeader {
-    return { version: SESSION_FORMAT_VERSION, id: this.storeId, createdAt: Date.now(), isSeeded: false }
+  private header(storeId: SessionId): SessionHeader {
+    return { version: SESSION_FORMAT_VERSION, id: storeId, createdAt: Date.now(), isSeeded: false }
   }
 }
 

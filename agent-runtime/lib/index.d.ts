@@ -1,6 +1,6 @@
 import { Context, Service } from "@deepseek-ai/cordis";
 import { ContentBlock } from "@deepseek-ai/dsh-llm";
-import { Session, SessionId as SessionId$1 } from "@deepseek-ai/dsh-session";
+import { Session, SessionId, SessionId as SessionId$1 } from "@deepseek-ai/dsh-session";
 import { Agent, AgentHandle, AgentOptions } from "@deepseek-ai/dsh-agent";
 import { GroupNode } from "@dangosys/dsh-singularity-graph";
 import { CanvasNode } from "@dangosys/dsh-singularity-layout";
@@ -62,10 +62,12 @@ declare class AgentRuntime extends Service {
   private readonly handles;
   private readonly transcripts;
   constructor(ctx: Context);
+  ensureRoot(sessionId: SessionId): Promise<AgentHandle>;
   createRoot(request: RootRequest): Promise<AgentHandle>;
   promoteRoot(agent: Agent): Promise<void>;
   spawn(parent: Agent, request: SpawnRequest): Promise<AgentHandle>;
   destroySession(sessionId: string): Promise<void>;
+  stopAgents(sessionIds: readonly SessionId[]): Promise<void>;
   createGroup(router: Agent, request: GroupRequest): Promise<GroupHandle>;
   addMember(groupId: string, member: Agent): Promise<void>;
   handoff(parent: Agent, child: Agent, brief?: string): Promise<void>;

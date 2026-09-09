@@ -1,0 +1,3 @@
+- insert:
+    - id: graphs
+      name: '@dangosys/dsh-singularity-graphs'

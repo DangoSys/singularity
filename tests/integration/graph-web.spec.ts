@@ -59,6 +59,12 @@ describe('graph-web routes and SSE', () => {
     const ctx = {
       graph: { snapshot: async () => snapshot },
       layout: { snapshot: async () => layout },
+      graphs: {
+        snapshot: async () => ({ version: 1 as const, graphs: [], archives: [] }),
+        list: async () => [],
+      },
+      envBuilder: { store: { list: () => [] } },
+      hitl: { list: () => [] },
       sessions: { get: () => undefined },
       webServer: {
         register: ({ path, handler }: { path: string; handler: (req: IncomingMessage, res: ServerResponse) => void }) => {
@@ -85,6 +91,10 @@ describe('graph-web routes and SSE', () => {
     expect(handlers.has('/singularity/events')).toBe(true)
     expect(handlers.has('/singularity/transcript')).toBe(true)
     expect(handlers.has('/singularity/notices')).toBe(true)
+    expect(handlers.has('/singularity/graphs')).toBe(true)
+    expect(handlers.has('/singularity/graph-envs')).toBe(true)
+    expect(handlers.has('/singularity/repo-check')).toBe(true)
+    expect(handlers.has('/singularity/hitl')).toBe(true)
 
     const res = mockRes()
     await handlers.get('/singularity/graph')!(mockReq('GET', '/singularity/graph'), res as unknown as ServerResponse)

@@ -20,8 +20,22 @@ export function registerEvents(ctx: Context, broadcast: GraphBroadcast): () => v
       })
       broadcast.clients.add(res)
       req.on('close', () => broadcast.clients.delete(res))
-      res.write(`event: graph\ndata: ${JSON.stringify(await ctx.graph.snapshot())}\n\n`)
-      res.write(`event: layout\ndata: ${JSON.stringify(await ctx.layout.snapshot())}\n\n`)
+      try {
+        res.write(`event: graph\ndata: ${JSON.stringify(await ctx.graph.snapshot())}\n\n`)
+        res.write(`event: layout\ndata: ${JSON.stringify(await ctx.layout.snapshot())}\n\n`)
+      } catch (error) {
+        res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`)
+      }
+      try {
+        res.write(`event: graphs\ndata: ${JSON.stringify(await ctx.graphs.snapshot())}\n\n`)
+      } catch (error) {
+        res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`)
+      }
+      try {
+        res.write(`event: hitl\ndata: ${JSON.stringify({ pending: ctx.hitl.list() })}\n\n`)
+      } catch (error) {
+        res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`)
+      }
     },
   })
 }

@@ -90,13 +90,16 @@ declare module '@deepseek-ai/cordis' {
 }
 declare class GraphService extends Service {
   static inject: string[];
-  private readonly ready;
-  private readonly storeId;
+  private ready;
+  private storeId;
   private handle;
   private state;
   private nextSeq;
   private writes;
+  private active;
   constructor(ctx: Context, config?: GraphConfig);
+  currentStoreId(): string;
+  switchStore(rawId: string): Promise<GraphSnapshot>;
   snapshot(): Promise<GraphSnapshot>;
   addAgent(agent: AgentNode, root?: boolean): Promise<void>;
   setStatus(agentId: SessionId, status: AgentStatus): Promise<void>;

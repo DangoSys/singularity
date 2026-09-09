@@ -1,6 +1,6 @@
 {
   "name": "@dangosys/dsh-singularity-agent",
-  "description": "Singularity root agent env_create tool",
+  "description": "Singularity root agent tools",
   "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
@@ -32,9 +32,7 @@
     "@deepseek-ai/dsh-llm": "*"
   },
   "dependencies": {
-    "@dangosys/dsh-env-builder": "link:../../env-builder",
-    "@dangosys/dsh-singularity-agent-runtime": "workspace:*",
-    "@dangosys/dsh-singularity-layout": "workspace:*"
+    "@dangosys/dsh-singularity-graphs": "workspace:*"
   },
   "license": "Apache-2.0",
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@dangosys/dsh-singularity-canvas-view",
-  "description": "Singularity canvas conversation view",
+  "description": "Singularity map view switch (对话 | Singularity)",
   "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
@@ -26,10 +26,7 @@
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "platform": "web",
-      "inject": [
-        "@deepseek-ai/dsh-client-ui-sidebar"
-      ]
+      "platform": "web"
     }
   },
   "peerDependencies": {

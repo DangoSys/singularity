@@ -77,21 +77,49 @@ var LayoutService = class extends Service {
 	state;
 	nextSeq = 0;
 	writes = Promise.resolve();
+	active = false;
 	constructor(ctx, config = {}) {
 		super(ctx, "layout");
-		const rawId = config.storeId ?? "layout-state";
+		const rawId = config.storeId ?? "layout-idle";
 		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`layout: invalid store id "${rawId}"`);
 		this.storeId = SessionId(rawId);
 		this.state = new LayoutState(rawId);
-		this.ready = this.open(ctx);
+		this.ready = this.open(ctx, this.storeId);
 		ctx.effect(() => () => this.ready.then(() => this.handle?.close()), "layout:persistence");
+	}
+	currentStoreId() {
+		return this.storeId;
+	}
+	async switchStore(rawId) {
+		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`layout: invalid store id "${rawId}"`);
+		const nextId = SessionId(rawId);
+		if (this.active && nextId === this.storeId) return this.state.snapshot();
+		const run = this.writes.then(async () => {
+			await this.ready;
+			await this.handle?.flush();
+			this.handle?.close();
+			this.handle = void 0;
+			this.storeId = nextId;
+			this.state = new LayoutState(rawId);
+			this.nextSeq = 0;
+			this.ready = this.open(this.ctx, nextId);
+			await this.ready;
+			this.active = true;
+			const snap = this.state.snapshot();
+			this.ctx.emit("layout/change", snap);
+			return snap;
+		});
+		this.writes = run.then(() => void 0);
+		return run;
 	}
 	async snapshot() {
 		await this.ready;
+		if (!this.active) throw new Error("layout: no graph selected");
 		return this.state.snapshot();
 	}
 	async get(sessionId) {
 		await this.ready;
+		if (!this.active) throw new Error("layout: no graph selected");
 		return this.state.get(sessionId);
 	}
 	async set(sessionId, node) {
@@ -109,6 +137,7 @@ var LayoutService = class extends Service {
 	}
 	async commit(events) {
 		if (events.length === 0) throw new Error("layout: cannot commit an empty event batch");
+		if (!this.active) throw new Error("layout: no graph selected");
 		const run = this.writes.then(async () => {
 			await this.ready;
 			const next = this.state.clone();
@@ -128,10 +157,10 @@ var LayoutService = class extends Service {
 		this.writes = run;
 		return run;
 	}
-	async open(ctx) {
-		const listed = (await ctx.sessionPersistence.list()).filter((item) => item.header.id === this.storeId);
-		if (listed.length > 1) throw new Error(`layout: duplicate store session "${this.storeId}"`);
-		this.handle = listed.length === 0 ? await ctx.sessionPersistence.create(this.header()) : await ctx.sessionPersistence.open(this.storeId, "write");
+	async open(ctx, storeId) {
+		const listed = (await ctx.sessionPersistence.list()).filter((item) => item.header.id === storeId);
+		if (listed.length > 1) throw new Error(`layout: duplicate store session "${storeId}"`);
+		this.handle = listed.length === 0 ? await ctx.sessionPersistence.create(this.header(storeId)) : await ctx.sessionPersistence.open(storeId, "write");
 		const { events } = await this.handle.read();
 		for (const event of events) {
 			if (event.type !== "layout/event" || event.ignorable !== true) throw new Error(`layout: invalid persisted event at seq ${event.seq}`);
@@ -143,10 +172,10 @@ var LayoutService = class extends Service {
 		}
 		await this.handle.flush();
 	}
-	header() {
+	header(storeId) {
 		return {
 			version: SESSION_FORMAT_VERSION,
-			id: this.storeId,
+			id: storeId,
 			createdAt: Date.now(),
 			isSeeded: false
 		};

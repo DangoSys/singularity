@@ -49,39 +49,35 @@ var AgentRuntime = class extends Service {
 			this.handles.clear();
 			this.owned.clear();
 		}, "agentRuntime: dispose");
-		ctx.effect(async () => {
-			const snapshot = await ctx.graph.snapshot();
-			const headers = new Map((await ctx.sessionPersistence.list()).map((item) => [item.header.id, item.header]));
-			try {
-				for (const sessionId of snapshot.roots) {
-					if (ctx.agents.get(sessionId) !== void 0) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`);
-					if (snapshot.agents.find((agent) => agent.id === sessionId)?.status === "running") await ctx.graph.setStatus(sessionId, "idle");
-					const agentPreset = headers.get(sessionId)?.agentPreset;
-					if (agentPreset === void 0) throw new Error(`agent-runtime: root session "${sessionId}" has no agent preset`);
-					this.owned.add(sessionId);
-					this.roots.add(sessionId);
-					try {
-						const handle = await ctx.agents.resume({
-							resumeSessionId: sessionId,
-							agentOptions: this.ctx.agentDefaultModel.currentSelection(),
-							setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, agentPreset)
-						});
-						this.handles.set(sessionId, handle);
-					} catch (error) {
-						this.owned.delete(sessionId);
-						this.roots.delete(sessionId);
-						throw error;
-					}
+	}
+	async ensureRoot(sessionId) {
+		const existing = this.handles.get(sessionId);
+		if (existing !== void 0) return existing;
+		if (this.ctx.agents.get(sessionId) !== void 0) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`);
+		const snapshot = await this.ctx.graph.snapshot();
+		const persisted = snapshot.agents.find((agent) => agent.id === sessionId);
+		if (persisted === void 0) throw new Error(`agent-runtime: root "${sessionId}" is not in graph`);
+		if (!snapshot.roots.includes(sessionId)) throw new Error(`agent-runtime: "${sessionId}" is not a root`);
+		if (persisted.status === "running") await this.ctx.graph.setStatus(sessionId, "idle");
+		const agentPreset = new Map((await this.ctx.sessionPersistence.list()).map((item) => [item.header.id, item.header])).get(sessionId)?.agentPreset;
+		if (agentPreset === void 0) throw new Error(`agent-runtime: root session "${sessionId}" has no agent preset`);
+		this.owned.add(sessionId);
+		this.roots.add(sessionId);
+		try {
+			const handle = await this.ctx.agents.resume({
+				resumeSessionId: sessionId,
+				agentOptions: this.ctx.agentDefaultModel.currentSelection(),
+				setup: async (agentCtx) => {
+					await this.ctx.agentPresets.mount(agentCtx, agentPreset);
 				}
-			} catch (error) {
-				await Promise.all([...this.handles.values()].map((handle) => handle.dispose()));
-				this.handles.clear();
-				this.owned.clear();
-				this.roots.clear();
-				throw error;
-			}
-			return () => {};
-		}, "agentRuntime: roots");
+			});
+			this.handles.set(sessionId, handle);
+			return handle;
+		} catch (error) {
+			this.owned.delete(sessionId);
+			this.roots.delete(sessionId);
+			throw error;
+		}
 	}
 	async createRoot(request) {
 		this.owned.add(request.sessionId);
@@ -98,7 +94,9 @@ var AgentRuntime = class extends Service {
 					...this.ctx.agentDefaultModel.currentSelection(),
 					...request.agentOptions
 				},
-				setup: (agentCtx) => this.ctx.agentPresets.mount(agentCtx, agentPreset)
+				setup: async (agentCtx) => {
+					await this.ctx.agentPresets.mount(agentCtx, agentPreset);
+				}
 			});
 		} catch (error) {
 			this.owned.delete(request.sessionId);
@@ -202,6 +200,22 @@ var AgentRuntime = class extends Service {
 		this.roots.delete(id);
 		await handle.dispose();
 		await this.ctx.layout.remove(id);
+	}
+	async stopAgents(sessionIds) {
+		for (const id of sessionIds) {
+			const agent = this.ctx.agents.get(id);
+			if (agent !== void 0) agent.cancel({ kind: "disposed" });
+			const handle = this.handles.get(id);
+			if (handle === void 0) {
+				this.owned.delete(id);
+				this.roots.delete(id);
+				continue;
+			}
+			this.handles.delete(id);
+			this.owned.delete(id);
+			this.roots.delete(id);
+			await handle.dispose();
+		}
 	}
 	async createGroup(router, request) {
 		this.live(router);
