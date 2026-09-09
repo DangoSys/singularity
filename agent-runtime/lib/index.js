@@ -7,6 +7,7 @@ import { SessionId } from "@deepseek-ai/dsh-session";
 var AgentRuntime = class extends Service {
 	static inject = [
 		"agentDefaultModel",
+		"agentPresets",
 		"agents",
 		"graph",
 		"layout",
@@ -50,15 +51,20 @@ var AgentRuntime = class extends Service {
 		}, "agentRuntime: dispose");
 		ctx.effect(async () => {
 			const snapshot = await ctx.graph.snapshot();
+			const headers = new Map((await ctx.sessionPersistence.list()).map((item) => [item.header.id, item.header]));
 			try {
 				for (const sessionId of snapshot.roots) {
 					if (ctx.agents.get(sessionId) !== void 0) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`);
+					if (snapshot.agents.find((agent) => agent.id === sessionId)?.status === "running") await ctx.graph.setStatus(sessionId, "idle");
+					const agentPreset = headers.get(sessionId)?.agentPreset;
+					if (agentPreset === void 0) throw new Error(`agent-runtime: root session "${sessionId}" has no agent preset`);
 					this.owned.add(sessionId);
 					this.roots.add(sessionId);
 					try {
 						const handle = await ctx.agents.resume({
 							resumeSessionId: sessionId,
-							agentOptions: this.ctx.agentDefaultModel.currentSelection()
+							agentOptions: this.ctx.agentDefaultModel.currentSelection(),
+							setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, agentPreset)
 						});
 						this.handles.set(sessionId, handle);
 					} catch (error) {
@@ -79,15 +85,20 @@ var AgentRuntime = class extends Service {
 	}
 	async createRoot(request) {
 		this.owned.add(request.sessionId);
+		const agentPreset = request.agentPreset ?? this.ctx.agentPresets.defaultId;
 		let handle;
 		try {
 			handle = await this.ctx.agents.create({
 				sessionId: request.sessionId,
-				meta: { cwd: cwd() },
+				meta: {
+					cwd: cwd(),
+					agentPreset
+				},
 				agentOptions: {
 					...this.ctx.agentDefaultModel.currentSelection(),
 					...request.agentOptions
-				}
+				},
+				setup: (agentCtx) => this.ctx.agentPresets.mount(agentCtx, agentPreset)
 			});
 		} catch (error) {
 			this.owned.delete(request.sessionId);

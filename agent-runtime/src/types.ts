@@ -25,6 +25,7 @@ export interface SessionVisibility {
 export interface RootRequest {
   readonly sessionId: SessionId
   readonly agentOptions?: AgentOptions
+  readonly agentPreset?: string
 }
 export interface SpawnRequest {
   readonly sessionId: SessionId

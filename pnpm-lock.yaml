@@ -26,6 +26,9 @@ importers:
       '@deepseek-ai/dsh-agent-default-model':
         specifier: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
         version: link:../../../thirdparty/deepseek-harness/packages/core/agent-default-model
+      '@deepseek-ai/dsh-agent-presets':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/preset/agent-presets
+        version: link:../../../thirdparty/deepseek-harness/packages/preset/agent-presets
       '@deepseek-ai/dsh-llm':
         specifier: link:../../../thirdparty/deepseek-harness/packages/llm/llm
         version: link:../../../thirdparty/deepseek-harness/packages/llm/llm

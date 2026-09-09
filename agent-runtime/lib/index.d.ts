@@ -31,6 +31,7 @@ interface SessionVisibility {
 interface RootRequest {
   readonly sessionId: SessionId$1;
   readonly agentOptions?: AgentOptions;
+  readonly agentPreset?: string;
 }
 interface SpawnRequest {
   readonly sessionId: SessionId$1;

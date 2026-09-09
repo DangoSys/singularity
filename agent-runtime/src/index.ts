@@ -6,6 +6,7 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { cwd } from 'node:process'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
+import type {} from '@deepseek-ai/dsh-agent-presets'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
@@ -15,7 +16,7 @@ import type { Agent, AgentHandle, ContentBlock, GraphEvent, GraphSnapshot, Group
 export type { AgentOptions, CanvasNode, ContentBlock, GroupHandle, GroupRequest, RelayRequest, RootRequest, SessionVisibility, SpawnRequest } from './types.ts'
 
 export class AgentRuntime extends Service {
-  static inject = ['agentDefaultModel', 'agents', 'graph', 'layout', 'sessions', 'sessionPersistence']
+  static inject = ['agentDefaultModel', 'agentPresets', 'agents', 'graph', 'layout', 'sessions', 'sessionPersistence']
   private readonly owned = new Set<SessionId>()
   private readonly roots = new Set<SessionId>()
   private readonly handles = new Map<SessionId, AgentHandle>()
@@ -44,15 +45,21 @@ export class AgentRuntime extends Service {
     }, 'agentRuntime: dispose')
     ctx.effect(async () => {
       const snapshot = await ctx.graph.snapshot()
+      const headers = new Map((await ctx.sessionPersistence.list()).map(item => [item.header.id, item.header]))
       try {
         for (const sessionId of snapshot.roots) {
           if (ctx.agents.get(sessionId) !== undefined) throw new Error(`agent-runtime: root agent "${sessionId}" is already live`)
+          const persisted = snapshot.agents.find(agent => agent.id === sessionId)
+          if (persisted?.status === 'running') await ctx.graph.setStatus(sessionId, 'idle')
+          const agentPreset = headers.get(sessionId)?.agentPreset
+          if (agentPreset === undefined) throw new Error(`agent-runtime: root session "${sessionId}" has no agent preset`)
           this.owned.add(sessionId)
           this.roots.add(sessionId)
           try {
             const handle = await ctx.agents.resume({
               resumeSessionId: sessionId,
               agentOptions: this.ctx.agentDefaultModel.currentSelection(),
+              setup: agentCtx => ctx.agentPresets.mount(agentCtx, agentPreset),
             })
             this.handles.set(sessionId, handle)
           } catch (error) {
@@ -74,12 +81,14 @@ export class AgentRuntime extends Service {
 
   async createRoot(request: RootRequest): Promise<AgentHandle> {
     this.owned.add(request.sessionId)
+    const agentPreset = request.agentPreset ?? this.ctx.agentPresets.defaultId
     let handle: AgentHandle
     try {
       handle = await this.ctx.agents.create({
         sessionId: request.sessionId,
-        meta: { cwd: cwd() },
+        meta: { cwd: cwd(), agentPreset },
         agentOptions: { ...this.ctx.agentDefaultModel.currentSelection(), ...request.agentOptions },
+        setup: agentCtx => this.ctx.agentPresets.mount(agentCtx, agentPreset),
       })
     } catch (error) {
       this.owned.delete(request.sessionId); throw error
