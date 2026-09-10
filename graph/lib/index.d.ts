@@ -98,7 +98,6 @@ declare class GraphService extends Service {
   private writes;
   private active;
   constructor(ctx: Context, config?: GraphConfig);
-  currentStoreId(): string;
   switchStore(rawId: string): Promise<GraphSnapshot>;
   snapshot(): Promise<GraphSnapshot>;
   addAgent(agent: AgentNode, root?: boolean): Promise<void>;

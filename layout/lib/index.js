@@ -87,9 +87,6 @@ var LayoutService = class extends Service {
 		this.ready = this.open(ctx, this.storeId);
 		ctx.effect(() => () => this.ready.then(() => this.handle?.close()), "layout:persistence");
 	}
-	currentStoreId() {
-		return this.storeId;
-	}
 	async switchStore(rawId) {
 		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`layout: invalid store id "${rawId}"`);
 		const nextId = SessionId(rawId);
@@ -116,11 +113,6 @@ var LayoutService = class extends Service {
 		await this.ready;
 		if (!this.active) throw new Error("layout: no graph selected");
 		return this.state.snapshot();
-	}
-	async get(sessionId) {
-		await this.ready;
-		if (!this.active) throw new Error("layout: no graph selected");
-		return this.state.get(sessionId);
 	}
 	async set(sessionId, node) {
 		await this.commit([{

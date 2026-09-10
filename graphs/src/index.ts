@@ -9,6 +9,7 @@ import type { SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session'
 import { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionHandle } from '@deepseek-ai/dsh-session-persistence'
 import type {} from '@dangosys/dsh-env-builder'
+import { cleanPromptText } from '@dangosys/dsh-env-builder'
 import type {} from '@dangosys/dsh-singularity-graph'
 import type {} from '@dangosys/dsh-singularity-layout'
 import type {} from '@dangosys/dsh-singularity-agent-runtime'
@@ -135,6 +136,28 @@ export class GraphsService extends Service {
     const graph = this.state.get(id)
     await this.ctx.graph.switchStore(graph.graphStoreId)
     await this.ctx.layout.switchStore(graph.layoutStoreId)
+
+    const root = await this.ctx.agentRuntime.ensureRoot(graph.rootSessionId)
+    const cleanSessionId = SessionId(randomUUID())
+    const cleaned = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        stop()
+        reject(new Error(`graphs: env clean timed out for "${graph.envId}"`))
+      }, 10 * 60 * 1000)
+      const stop = this.ctx.on('envBuilder/cleaned', (envId: string) => {
+        if (envId !== graph.envId) return
+        clearTimeout(timer)
+        stop()
+        resolve()
+      })
+    })
+    await this.ctx.agentRuntime.spawn(root.agent, {
+      sessionId: cleanSessionId,
+      name: 'env-clean',
+      prompt: [{ type: 'text', text: cleanPromptText(graph.envId) }],
+    })
+    await cleaned
+
     const snapshot = await this.ctx.graph.snapshot()
     const agentIds = snapshot.agents.map(agent => agent.id)
     await this.ctx.agentRuntime.stopAgents(agentIds)
@@ -144,8 +167,6 @@ export class GraphsService extends Service {
       agentIds,
       archivedAt: Date.now(),
     }
-    this.ctx.envBuilder.store.clean(graph.envId)
-
     await this.commit([{ kind: 'graph/remove', id, archive }])
 
     const selected = this.state.selected()

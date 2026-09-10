@@ -17,8 +17,6 @@ import { registerGraphs } from './web/api/graphs.ts'
 import { registerHitl } from './web/api/hitl.ts'
 import { registerLayout } from './web/api/layout.ts'
 import { registerMapStatic } from './web/api/map-static.ts'
-import { registerNotices } from './web/api/notices.ts'
-import { registerTranscript } from './web/api/transcript.ts'
 import { GraphBroadcast } from './web/libs/broadcast.ts'
 
 interface PrChatPathEvent {
@@ -55,8 +53,6 @@ export function apply(ctx: Context): void {
     const graphEnvs = registerGraphEnvs(ctx)
     const hitl = registerHitl(ctx)
     const events = registerEvents(ctx, broadcast)
-    const transcript = registerTranscript(ctx)
-    const notices = registerNotices(ctx, broadcast)
     const map = registerMapStatic(ctx)
     return () => {
       graph()
@@ -65,8 +61,6 @@ export function apply(ctx: Context): void {
       graphEnvs()
       hitl()
       events()
-      transcript()
-      notices()
       map()
       broadcast.close()
     }

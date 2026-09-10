@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Context, Service } from "@deepseek-ai/cordis";
 import { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from "@deepseek-ai/dsh-session";
+import { cleanPromptText } from "@dangosys/dsh-env-builder";
 import { DEFAULT_ROOT } from "@dangosys/dsh-singularity-layout";
 
 //#region src/service/state.ts
@@ -213,6 +214,29 @@ var GraphsService = class extends Service {
 		const graph = this.state.get(id);
 		await this.ctx.graph.switchStore(graph.graphStoreId);
 		await this.ctx.layout.switchStore(graph.layoutStoreId);
+		const root = await this.ctx.agentRuntime.ensureRoot(graph.rootSessionId);
+		const cleanSessionId = SessionId(randomUUID());
+		const cleaned = new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				stop();
+				reject(/* @__PURE__ */ new Error(`graphs: env clean timed out for "${graph.envId}"`));
+			}, 600 * 1e3);
+			const stop = this.ctx.on("envBuilder/cleaned", (envId) => {
+				if (envId !== graph.envId) return;
+				clearTimeout(timer);
+				stop();
+				resolve();
+			});
+		});
+		await this.ctx.agentRuntime.spawn(root.agent, {
+			sessionId: cleanSessionId,
+			name: "env-clean",
+			prompt: [{
+				type: "text",
+				text: cleanPromptText(graph.envId)
+			}]
+		});
+		await cleaned;
 		const agentIds = (await this.ctx.graph.snapshot()).agents.map((agent) => agent.id);
 		await this.ctx.agentRuntime.stopAgents(agentIds);
 		const archive = {
@@ -220,7 +244,6 @@ var GraphsService = class extends Service {
 			agentIds,
 			archivedAt: Date.now()
 		};
-		this.ctx.envBuilder.store.clean(graph.envId);
 		await this.commit([{
 			kind: "graph/remove",
 			id,

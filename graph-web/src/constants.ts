@@ -1,8 +1,6 @@
 export const GRAPH_PATH = '/singularity/graph'
 export const LAYOUT_PATH = '/singularity/layout'
 export const EVENTS_PATH = '/singularity/events'
-export const TRANSCRIPT_PATH = '/singularity/transcript'
-export const NOTICES_PATH = '/singularity/notices'
 export const MAP_PATH = '/singularity/map'
 export const GRAPHS_PATH = '/singularity/graphs'
 export const GRAPH_ENVS_PATH = '/singularity/graph-envs'

@@ -44,10 +44,6 @@ export class GraphService extends Service {
     ctx.effect(() => () => this.ready.then(() => this.handle?.close()), 'graph:persistence')
   }
 
-  currentStoreId(): string {
-    return this.storeId
-  }
-
   async switchStore(rawId: string): Promise<GraphSnapshot> {
     if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`graph: invalid store id "${rawId}"`)
     const nextId = makeSessionId(rawId)

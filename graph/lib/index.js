@@ -163,9 +163,6 @@ var GraphService = class extends Service {
 		this.ready = this.open(ctx, this.storeId);
 		ctx.effect(() => () => this.ready.then(() => this.handle?.close()), "graph:persistence");
 	}
-	currentStoreId() {
-		return this.storeId;
-	}
 	async switchStore(rawId) {
 		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`graph: invalid store id "${rawId}"`);
 		const nextId = SessionId(rawId);

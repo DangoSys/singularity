@@ -13,8 +13,8 @@ window.__ModuleLoader__.load({
 .sg-switch button.active{background:#111827;color:#fff}
 .sg-shell{position:fixed;z-index:100;inset:0;display:none;background:#faf9f7;color:#1a1a1a;font:12px Inter,system-ui,sans-serif}
 .sg-shell.open{display:flex}
-.sg-main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;position:relative}
-.sg-frame{flex:1;min-height:0;border:0;width:100%;background:#faf9f7}
+.sg-main{flex:1;min-width:0;min-height:0;position:relative}
+.sg-frame{position:absolute;inset:0;border:0;width:100%;height:100%;background:#faf9f7}
 .sg-side{position:absolute;z-index:5;left:14px;top:14px;width:340px;display:flex;flex-direction:column;gap:10px;max-height:calc(100% - 28px);pointer-events:none}
 .sg-side>*{pointer-events:auto}
 .sg-graphs{flex:none;border:1px solid #e8e5e0;border-radius:12px;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(26,26,26,.1);backdrop-filter:blur(12px);overflow:hidden}
@@ -28,6 +28,8 @@ window.__ModuleLoader__.load({
 .sg-graph-row button.del{flex:none;width:34px;border:0;border-left:1px solid #f0eeea;background:transparent;color:#968c77;cursor:pointer}
 .sg-graph-row button.del:hover{background:#fef2f2;color:#dc2626}
 .sg-graphs-empty{padding:12px 10px;color:#968c77}
+.sg-list-err{padding:8px 10px;color:#dc2626;font-size:11px;white-space:pre-wrap;border-top:1px solid #f0eeea}
+.sg-list-err:empty{display:none}
 .sg-create{flex:none;display:none;border:1px solid #e8e5e0;border-radius:12px;background:#fff;box-shadow:0 8px 24px rgba(26,26,26,.1);padding:12px;overflow:auto;max-height:min(520px,calc(100vh - 200px))}
 .sg-create.open{display:block}
 .sg-create h3{margin:0 0 8px;font-size:13px}
@@ -74,6 +76,7 @@ window.__ModuleLoader__.load({
         '<aside class="sg-graphs">',
         '<div class="sg-graphs-head"><span>Graphs</span><button type="button" data-action="new">New</button></div>',
         '<div class="sg-graphs-list"></div>',
+        '<div class="sg-list-err" data-field="list-err"></div>',
         '</aside>',
         '<div class="sg-create">',
         '<h3>New graph</h3>',
@@ -100,6 +103,7 @@ window.__ModuleLoader__.load({
       const shell = host.querySelector('.sg-shell')
       const frame = host.querySelector('.sg-frame')
       const listEl = host.querySelector('.sg-graphs-list')
+      const listErr = host.querySelector('[data-field="list-err"]')
       const createEl = host.querySelector('.sg-create')
       const envSelect = host.querySelector('[data-field="env"]')
       const nameInput = host.querySelector('[data-field="name"]')
@@ -114,7 +118,7 @@ window.__ModuleLoader__.load({
       const createBtn = host.querySelector('[data-action="create"]')
       const cancelBtn = host.querySelector('[data-action="cancel"]')
       const newBtn = host.querySelector('[data-action="new"]')
-      if (!dialogBtn || !mapBtn || !shell || !frame || !listEl || !createEl || !envSelect || !nameInput || !envNewBtn || !envNewPanel || !tagsEl || !repoInput || !repoErr || !createErr || !createStatus || !repoAddBtn || !createBtn || !cancelBtn || !newBtn) {
+      if (!dialogBtn || !mapBtn || !shell || !frame || !listEl || !listErr || !createEl || !envSelect || !nameInput || !envNewBtn || !envNewPanel || !tagsEl || !repoInput || !repoErr || !createErr || !createStatus || !repoAddBtn || !createBtn || !cancelBtn || !newBtn) {
         throw new Error('singularity shell: mount failed')
       }
 
@@ -124,6 +128,7 @@ window.__ModuleLoader__.load({
       let plannedRepos = []
       let checkingRepo = false
       let creating = false
+      let deletingId = null
 
       const setView = (view) => {
         const map = view === 'map'
@@ -132,8 +137,10 @@ window.__ModuleLoader__.load({
         dialogBtn.setAttribute('aria-pressed', String(!map))
         mapBtn.setAttribute('aria-pressed', String(map))
         shell.classList.toggle('open', map)
-        if (map && !frame.getAttribute('src')) frame.setAttribute('src', MAP)
-        if (map) void refreshGraphs()
+        if (map) {
+          if (!frame.getAttribute('src')) frame.setAttribute('src', MAP)
+          void refreshGraphs().catch((e) => { listErr.textContent = String(e?.message ?? e) })
+        }
       }
 
       const blocksText = (content) => {
@@ -145,9 +152,20 @@ window.__ModuleLoader__.load({
         frame.contentWindow?.postMessage({ type: 'singularity:transcript', sessionId, rows }, '*')
       }
 
-      const bindChat = (sessionId) => {
+      const pingMap = () => {
+        const win = frame.contentWindow
+        if (win === null) return
+        win.postMessage({ type: 'singularity:reload' }, '*')
+        const selected = graphsSnap?.graphs?.find((g) => g.id === graphsSnap.selectedId)
+        if (selected !== undefined) {
+          win.postMessage({ type: 'singularity:select', sessionId: selected.rootSessionId }, '*')
+        }
+      }
+
+      const bindChat = async (sessionId) => {
         if (chat.dispose) chat.dispose()
         chat = { sessionId, dispose: null }
+        await ctx.sessions.refresh()
         ctx.sessions.open(sessionId)
         const binding = ctx.sessions.binding(sessionId)
         if (binding === undefined) throw new Error('singularity: session binding missing for ' + sessionId)
@@ -190,7 +208,6 @@ window.__ModuleLoader__.load({
           empty.className = 'sg-graphs-empty'
           empty.textContent = 'No graphs — create one'
           listEl.append(empty)
-          clearChat()
           return
         }
         for (const graph of graphs) {
@@ -202,45 +219,76 @@ window.__ModuleLoader__.load({
           select.className = 'select'
           select.textContent = graph.name + (graph.ready ? '' : ' · setup')
           select.addEventListener('click', () => {
-            void selectGraph(graph.id).catch((e) => { createErr.textContent = String(e?.message ?? e) })
+            void selectGraph(graph.id).catch((e) => { listErr.textContent = String(e?.message ?? e) })
           })
           const del = document.createElement('button')
           del.type = 'button'
           del.className = 'del'
           del.title = 'Delete graph'
-          del.textContent = '⌫'
-          del.addEventListener('click', () => {
-            void deleteGraph(graph.id).catch((e) => { createErr.textContent = String(e?.message ?? e) })
+          del.textContent = graph.id === deletingId ? '…' : '⌫'
+          del.disabled = deletingId !== null
+          del.addEventListener('click', (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            void deleteGraph(graph.id).catch((e) => { listErr.textContent = String(e?.message ?? e) })
           })
+          select.disabled = deletingId !== null
           row.append(select, del)
           listEl.append(row)
         }
-        const selected = graphs.find(g => g.id === graphsSnap.selectedId)
-        if (selected) bindChat(selected.rootSessionId)
-        else clearChat()
+      }
+
+      const syncSelectedChat = async () => {
+        const selected = graphsSnap?.graphs?.find((g) => g.id === graphsSnap.selectedId)
+        if (selected === undefined) {
+          clearChat()
+          return
+        }
+        await bindChat(selected.rootSessionId)
       }
 
       const refreshGraphs = async () => {
+        listErr.textContent = ''
         const res = await fetch(GRAPHS)
         const text = await res.text()
-        if (!res.ok) throw new Error(text)
+        if (!res.ok) throw new Error(text || ('HTTP ' + res.status))
         graphsSnap = JSON.parse(text)
         paintGraphs()
-        frame.contentWindow?.postMessage({ type: 'singularity:reload' }, '*')
+        pingMap()
+        try {
+          await syncSelectedChat()
+        } catch (error) {
+          listErr.textContent = error instanceof Error ? error.message : String(error)
+        }
       }
 
       const selectGraph = async (id) => {
+        listErr.textContent = ''
         const res = await fetch(GRAPHS + '/' + encodeURIComponent(id) + '/select', { method: 'POST' })
         const text = await res.text()
-        if (!res.ok) throw new Error(text)
+        if (!res.ok) throw new Error(text || ('HTTP ' + res.status))
         await refreshGraphs()
       }
 
       const deleteGraph = async (id) => {
-        const res = await fetch(GRAPHS + '/' + encodeURIComponent(id) + '/delete', { method: 'POST' })
-        const text = await res.text()
-        if (!res.ok) throw new Error(text)
-        await refreshGraphs()
+        if (deletingId !== null) throw new Error('singularity: delete already in progress')
+        listErr.textContent = ''
+        deletingId = id
+        paintGraphs()
+        newBtn.disabled = true
+        try {
+          const res = await fetch(GRAPHS + '/' + encodeURIComponent(id) + '/delete', { method: 'POST' })
+          const text = await res.text()
+          if (!res.ok) throw new Error(text || ('HTTP ' + res.status))
+          deletingId = null
+          await refreshGraphs()
+        } catch (error) {
+          deletingId = null
+          paintGraphs()
+          throw error
+        } finally {
+          newBtn.disabled = false
+        }
       }
 
       const paintTags = () => {
@@ -429,6 +477,8 @@ window.__ModuleLoader__.load({
         }
       })
 
+      frame.addEventListener('load', () => { pingMap() })
+
       window.addEventListener('message', (event) => {
         if (event.source !== frame.contentWindow) return
         const data = event.data
@@ -437,7 +487,7 @@ window.__ModuleLoader__.load({
           if (typeof data.sessionId !== 'string' || data.sessionId.length === 0) {
             throw new Error('singularity: open message missing sessionId')
           }
-          bindChat(data.sessionId)
+          void bindChat(data.sessionId).catch((e) => { listErr.textContent = String(e?.message ?? e) })
           return
         }
         if (data.type === 'singularity:prompt') {

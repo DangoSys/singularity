@@ -44,10 +44,6 @@ export class LayoutService extends Service {
     ctx.effect(() => () => this.ready.then(() => this.handle?.close()), 'layout:persistence')
   }
 
-  currentStoreId(): string {
-    return this.storeId
-  }
-
   async switchStore(rawId: string): Promise<LayoutSnapshot> {
     if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`layout: invalid store id "${rawId}"`)
     const nextId = makeSessionId(rawId)
@@ -75,12 +71,6 @@ export class LayoutService extends Service {
     await this.ready
     if (!this.active) throw new Error('layout: no graph selected')
     return this.state.snapshot()
-  }
-
-  async get(sessionId: SessionId): Promise<CanvasNode> {
-    await this.ready
-    if (!this.active) throw new Error('layout: no graph selected')
-    return this.state.get(sessionId)
   }
 
   async set(sessionId: SessionId, node: CanvasNode): Promise<void> {

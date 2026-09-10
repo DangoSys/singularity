@@ -62,10 +62,8 @@ declare class LayoutService extends Service {
   private writes;
   private active;
   constructor(ctx: Context, config?: LayoutConfig);
-  currentStoreId(): string;
   switchStore(rawId: string): Promise<LayoutSnapshot>;
   snapshot(): Promise<LayoutSnapshot>;
-  get(sessionId: SessionId): Promise<CanvasNode>;
   set(sessionId: SessionId, node: CanvasNode): Promise<void>;
   remove(sessionId: SessionId): Promise<void>;
   commit(events: readonly LayoutEvent[]): Promise<void>;

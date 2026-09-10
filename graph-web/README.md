@@ -2,26 +2,13 @@
 
 [中文](README.zh.md) | English
 
-Purpose: HTTP and SSE surface for Singularity canvas: graph snapshot, events, transcript, and notices.
+HTTP and SSE for Singularity: graph, layout, graphs registry, HITL, map static, events.
 
-Package: `@dangosys/dsh-singularity-graph-web`
+### Routes
 
-Dependencies: graph, sessions, webServer
-
-config.yaml: none
-
-### Tools
-
-none
-
-### Web APIs
-
-1. GET `/singularity/graph`: GraphSnapshot JSON.
-2. GET `/singularity/layout`: LayoutSnapshot JSON.
-3. GET `/singularity/events`: SSE for graph, layout, and `pr-chat/path` / `pr-chat/sent` events.
-4. GET `/singularity/transcript?group=`: group transcript events.
-5. GET `/singularity/notices`: SSE agent status notices.
-
-### Service state
-
-none
+- `GET/POST /singularity/graphs`
+- `POST /singularity/graphs/:id/{select,ready,delete}`
+- `GET /singularity/graph-envs`, `POST /singularity/repo-check`
+- `GET /singularity/graph`, `GET/PUT /singularity/layout`
+- `GET /singularity/events` (SSE), `GET/POST /singularity/hitl`
+- `GET /singularity/map/` (static SPA)

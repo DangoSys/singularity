@@ -2,26 +2,13 @@
 
 [English](README.md) | 中文
 
-功能：为 Singularity 画布提供 graph 快照、SSE 事件、transcript 与 notice HTTP 接口。
+Singularity 的 HTTP/SSE：graph、layout、graphs 注册、HITL、map 静态资源、事件流。
 
-包名：`@dangosys/dsh-singularity-graph-web`
+### 路由
 
-依赖：graph, sessions, webServer
-
-依赖的config.yaml配置：无
-
-### 可调用Tools
-
-无
-
-### 注册的 Web API：
-
-1. GET `/singularity/graph`：返回 GraphSnapshot JSON。
-2. GET `/singularity/layout`：返回 LayoutSnapshot JSON。
-3. GET `/singularity/events`：SSE，推送 graph、layout 与 `pr-chat/path` / `pr-chat/sent` 事件。
-4. GET `/singularity/transcript?group=`：返回 group transcript 事件。
-5. GET `/singularity/notices`：SSE，推送 agent 状态 notice。
-
-### 维护的 Service 状态
-
-无
+- `GET/POST /singularity/graphs`
+- `POST /singularity/graphs/:id/{select,ready,delete}`
+- `GET /singularity/graph-envs`，`POST /singularity/repo-check`
+- `GET /singularity/graph`，`GET/PUT /singularity/layout`
+- `GET /singularity/events`（SSE），`GET/POST /singularity/hitl`
+- `GET /singularity/map/`（静态 SPA）

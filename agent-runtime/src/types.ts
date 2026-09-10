@@ -1,20 +1,13 @@
 import type { Agent, AgentHandle, AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import type { SessionId, Session } from '@deepseek-ai/dsh-session'
-import type { GraphEvent, GraphSnapshot, GroupNode } from '@dangosys/dsh-singularity-graph'
+import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { GraphEvent } from '@dangosys/dsh-singularity-graph'
 import type { CanvasNode } from '@dangosys/dsh-singularity-layout'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
     agentRuntime: import('./index.ts').AgentRuntime
     sessionVisibility: SessionVisibility
-  }
-}
-
-declare module '@deepseek-ai/dsh-llm' {
-  interface MessageSourceMap {
-    relay: { kind: 'relay'; from: SessionId; to: SessionId }
-    group: { kind: 'group'; agentId: SessionId }
   }
 }
 
@@ -27,6 +20,7 @@ export interface RootRequest {
   readonly agentOptions?: AgentOptions
   readonly agentPreset?: string
 }
+
 export interface SpawnRequest {
   readonly sessionId: SessionId
   readonly name: string
@@ -34,18 +28,5 @@ export interface SpawnRequest {
   readonly agentOptions?: AgentOptions
   readonly signal?: AbortSignal
 }
-export interface GroupRequest {
-  readonly id: string
-  readonly transcriptId: SessionId
-}
-export interface GroupHandle {
-  readonly group: GroupNode
-  readonly transcript: Session
-}
-export interface RelayRequest {
-  readonly from: Agent
-  readonly to: Agent
-  readonly prompt: readonly ContentBlock[]
-}
 
-export type { Agent, AgentHandle, AgentOptions, CanvasNode, ContentBlock, GraphEvent, GraphSnapshot, GroupNode, SessionId, Session }
+export type { Agent, AgentHandle, AgentOptions, CanvasNode, ContentBlock, GraphEvent, SessionId }

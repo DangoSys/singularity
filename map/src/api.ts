@@ -99,5 +99,3 @@ export function openEvents(handlers: {
   }
   return source
 }
-
-export type { ChatRow }

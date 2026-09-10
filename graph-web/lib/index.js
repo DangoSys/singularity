@@ -7,8 +7,6 @@ import { extname, normalize, resolve, sep } from "node:path";
 const GRAPH_PATH = "/singularity/graph";
 const LAYOUT_PATH = "/singularity/layout";
 const EVENTS_PATH = "/singularity/events";
-const TRANSCRIPT_PATH = "/singularity/transcript";
-const NOTICES_PATH = "/singularity/notices";
 const MAP_PATH = "/singularity/map";
 const GRAPHS_PATH = "/singularity/graphs";
 const GRAPH_ENVS_PATH = "/singularity/graph-envs";
@@ -328,63 +326,9 @@ function registerMapStatic(ctx) {
 }
 
 //#endregion
-//#region src/web/api/notices.ts
-function registerNotices(ctx, broadcast) {
-	return ctx.webServer.register({
-		kind: "exact",
-		path: NOTICES_PATH,
-		handler: async (req, res) => {
-			if (req.method !== "GET") {
-				send(res, 405, "text/plain; charset=utf-8", "method not allowed");
-				return;
-			}
-			res.writeHead(200, {
-				"content-type": "text/event-stream; charset=utf-8",
-				"cache-control": "no-cache",
-				connection: "keep-alive"
-			});
-			broadcast.notices.add(res);
-			req.on("close", () => broadcast.notices.delete(res));
-		}
-	});
-}
-
-//#endregion
-//#region src/web/api/transcript.ts
-function registerTranscript(ctx) {
-	return ctx.webServer.register({
-		kind: "exact",
-		path: TRANSCRIPT_PATH,
-		handler: async (req, res) => {
-			if (req.method !== "GET") {
-				send(res, 405, "text/plain; charset=utf-8", "method not allowed");
-				return;
-			}
-			try {
-				const groupId = new URL(req.url, "http://local").searchParams.get("group");
-				if (groupId === null || groupId.length === 0) throw new Error("web: transcript requires group");
-				const group = (await ctx.graph.snapshot()).groups.find((item) => item.id === groupId);
-				if (group === void 0) throw new Error(`web: group "${groupId}" is not in graph`);
-				const session = ctx.sessions.get(group.transcriptId);
-				if (session === void 0) throw new Error(`web: transcript "${group.transcriptId}" is not live`);
-				send(res, 200, "application/json; charset=utf-8", {
-					groupId,
-					transcriptId: group.transcriptId,
-					events: session.snapshotEvents()
-				});
-			} catch (error) {
-				send(res, 400, "text/plain; charset=utf-8", error instanceof Error ? error.message : String(error));
-			}
-		}
-	});
-}
-
-//#endregion
 //#region src/web/libs/broadcast.ts
 var GraphBroadcast = class {
 	clients = /* @__PURE__ */ new Set();
-	notices = /* @__PURE__ */ new Set();
-	previousStatuses = /* @__PURE__ */ new Map();
 	publishEvent(name$1, value) {
 		const frame = `event: ${name$1}\ndata: ${JSON.stringify(value)}\n\n`;
 		for (const res of this.clients) if (res.destroyed) this.clients.delete(res);
@@ -394,28 +338,11 @@ var GraphBroadcast = class {
 		this.publishEvent("layout", snapshot);
 	}
 	publish(snapshot) {
-		const frame = `event: graph\ndata: ${JSON.stringify(snapshot)}\n\n`;
-		for (const res of this.clients) if (res.destroyed) this.clients.delete(res);
-		else res.write(frame);
-		for (const agent of snapshot.agents) {
-			const previous = this.previousStatuses.get(agent.id);
-			const text = previous === "running" && agent.status === "idle" ? "已完成当前任务" : agent.status === "done" ? "任务已完成" : agent.status === "failed" ? "任务执行失败" : agent.status === "waiting" ? "正在等待处理" : void 0;
-			if (text === void 0 || previous === agent.status) continue;
-			const notice = `event: notice\ndata: ${JSON.stringify({
-				agentId: agent.id,
-				status: agent.status,
-				text
-			})}\n\n`;
-			for (const res of this.notices) if (res.destroyed) this.notices.delete(res);
-			else res.write(notice);
-		}
-		this.previousStatuses = new Map(snapshot.agents.map((agent) => [agent.id, agent.status]));
+		this.publishEvent("graph", snapshot);
 	}
 	close() {
 		for (const res of this.clients) res.end();
 		this.clients.clear();
-		for (const res of this.notices) res.end();
-		this.notices.clear();
 	}
 };
 
@@ -446,8 +373,6 @@ function apply(ctx) {
 		const graphEnvs = registerGraphEnvs(ctx);
 		const hitl = registerHitl(ctx);
 		const events = registerEvents(ctx, broadcast);
-		const transcript = registerTranscript(ctx);
-		const notices = registerNotices(ctx, broadcast);
 		const map = registerMapStatic(ctx);
 		return () => {
 			graph();
@@ -456,8 +381,6 @@ function apply(ctx) {
 			graphEnvs();
 			hitl();
 			events();
-			transcript();
-			notices();
 			map();
 			broadcast.close();
 		};
