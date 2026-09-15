@@ -1,5 +1,7 @@
 import { Context, Service } from "@deepseek-ai/cordis";
 import { SessionId } from "@deepseek-ai/dsh-session";
+import * as _dangosys_dsh_singularity_graph0 from "@dangosys/dsh-singularity-graph";
+import * as _dangosys_dsh_singularity_layout0 from "@dangosys/dsh-singularity-layout";
 
 //#region src/types.d.ts
 interface GraphRecord {
@@ -58,7 +60,7 @@ declare class GraphsState {
 }
 //#endregion
 //#region src/index.d.ts
-declare module '@deepseek-ai/dsh-session' {
+declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
     'graphs/event': GraphsEvent;
   }
@@ -80,17 +82,25 @@ declare class GraphsService extends Service {
   private state;
   private nextSeq;
   private writes;
+  private transitions;
   constructor(ctx: Context);
   snapshot(): Promise<GraphsSnapshot>;
   current(): Promise<GraphRecord>;
+  get(id: string): Promise<GraphRecord>;
+  view(id: string): Promise<{
+    meta: GraphRecord;
+    graph: _dangosys_dsh_singularity_graph0.GraphSnapshot;
+    layout: _dangosys_dsh_singularity_layout0.LayoutSnapshot;
+  }>;
   list(): Promise<readonly GraphRecord[]>;
   select(id: string): Promise<GraphRecord>;
   create(request: CreateGraphRequest): Promise<GraphRecord>;
-  markReady(id?: string): Promise<GraphRecord>;
+  markReady(id: string): Promise<GraphRecord>;
+  graphForSession(sessionId: SessionId): Promise<GraphRecord>;
   remove(id: string): Promise<void>;
-  private resolveEnv;
   private activate;
   private commit;
+  private transition;
   private open;
   private header;
 }

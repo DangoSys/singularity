@@ -145,120 +145,167 @@ var GraphState = class GraphState {
 
 //#endregion
 //#region src/index.ts
+function assertStoreId(id) {
+	if (!/^[A-Za-z0-9._-]+$/.test(id)) throw new Error(`graph: invalid store id "${id}"`);
+}
 var GraphService = class extends Service {
 	static inject = ["sessionPersistence"];
-	ready;
-	storeId;
-	handle;
-	state;
-	nextSeq = 0;
-	writes = Promise.resolve();
-	active = false;
+	stores = /* @__PURE__ */ new Map();
+	activeId;
+	closing = false;
 	constructor(ctx, config = {}) {
 		super(ctx, "graph");
-		const rawId = config.storeId ?? "graph-idle";
-		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`graph: invalid store id "${rawId}"`);
-		this.storeId = SessionId(rawId);
-		this.state = new GraphState(rawId);
-		this.ready = this.open(ctx, this.storeId);
-		ctx.effect(() => () => this.ready.then(() => this.handle?.close()), "graph:persistence");
+		const idle = config.storeId ?? "graph-idle";
+		this.load(idle);
+		ctx.effect(() => () => this.close(), "graph:persistence");
 	}
-	async switchStore(rawId) {
-		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`graph: invalid store id "${rawId}"`);
-		const nextId = SessionId(rawId);
-		if (this.active && nextId === this.storeId) return this.state.snapshot();
-		const run = this.writes.then(async () => {
-			await this.ready;
-			await this.handle?.flush();
-			this.handle?.close();
-			this.handle = void 0;
-			this.storeId = nextId;
-			this.state = new GraphState(rawId);
-			this.nextSeq = 0;
-			this.ready = this.open(this.ctx, nextId);
-			await this.ready;
-			this.active = true;
-			const snap = this.state.snapshot();
-			this.ctx.emit("graph/change", snap);
-			return snap;
-		});
-		this.writes = run.then(() => void 0);
-		return run;
+	async switchStore(id) {
+		const store = await this.store(id);
+		this.activeId = store.id;
+		const snapshot = store.state.snapshot();
+		this.ctx.emit("graph/change", snapshot);
+		return snapshot;
+	}
+	clearActive() {
+		if (this.closing) throw new Error("graph: service is closing");
+		this.activeId = void 0;
 	}
 	async snapshot() {
-		await this.ready;
-		if (!this.active) throw new Error("graph: no graph selected");
-		return this.state.snapshot();
+		return (await this.active()).state.snapshot();
+	}
+	async snapshotIn(id) {
+		return (await this.store(id)).state.snapshot();
 	}
 	async addAgent(agent, root = false) {
-		await this.commit([{
+		await this.addAgentIn(this.activeStoreId(), agent, root);
+	}
+	async addAgentIn(storeId, agent, root = false) {
+		await this.commitIn(storeId, [{
 			kind: "agent/add",
 			agent,
 			...root ? { root: true } : {}
 		}]);
 	}
 	async setStatus(agentId, status) {
-		await this.commit([{
+		await this.setStatusIn(this.activeStoreId(), agentId, status);
+	}
+	async setStatusIn(storeId, agentId, status) {
+		await this.commitIn(storeId, [{
 			kind: "agent/status",
 			agentId,
 			status
 		}]);
 	}
 	async addGroup(group) {
-		await this.commit([{
+		await this.addGroupIn(this.activeStoreId(), group);
+	}
+	async addGroupIn(storeId, group) {
+		await this.commitIn(storeId, [{
 			kind: "group/add",
 			group
 		}]);
 	}
 	async addMember(groupId, agentId) {
-		await this.commit([{
+		await this.addMemberIn(this.activeStoreId(), groupId, agentId);
+	}
+	async addMemberIn(storeId, groupId, agentId) {
+		await this.commitIn(storeId, [{
 			kind: "member/add",
 			groupId,
 			agentId
 		}]);
 	}
 	async addEdge(edge) {
-		await this.commit([{
+		await this.addEdgeIn(this.activeStoreId(), edge);
+	}
+	async addEdgeIn(storeId, edge) {
+		await this.commitIn(storeId, [{
 			kind: "edge/add",
 			edge
 		}]);
 	}
 	async commit(events) {
+		await this.commitIn(this.activeStoreId(), events);
+	}
+	async commitIn(storeId, events) {
 		if (events.length === 0) throw new Error("graph: cannot commit an empty event batch");
-		if (!this.active) throw new Error("graph: no graph selected");
-		const run = this.writes.then(async () => {
-			await this.ready;
-			const next = this.state.clone();
+		const store = this.load(storeId);
+		const run = store.writes.then(async () => {
+			await store.ready;
+			const next = store.state.clone();
 			for (const event of events) next.apply(event);
 			const records = events.map((event, index) => ({
 				type: "graph/event",
-				seq: SessionSeq(this.nextSeq + index),
+				seq: SessionSeq(store.nextSeq + index),
 				time: Date.now(),
 				data: event,
 				ignorable: true
 			}));
-			await this.handle.append(records);
-			this.state = next;
-			this.nextSeq += records.length;
-			this.ctx.emit("graph/change", this.state.snapshot());
+			await store.handle.append(records);
+			store.state = next;
+			store.nextSeq += records.length;
+			this.ctx.emit("graph/change", store.state.snapshot());
 		});
-		this.writes = run;
-		return run;
+		store.writes = run.then(() => void 0, () => void 0);
+		await run;
 	}
-	async open(ctx, storeId) {
-		const listed = (await ctx.sessionPersistence.list()).filter((item) => item.header.id === storeId);
-		if (listed.length > 1) throw new Error(`graph: duplicate store session "${storeId}"`);
-		this.handle = listed.length === 0 ? await ctx.sessionPersistence.create(this.header(storeId)) : await ctx.sessionPersistence.open(storeId, "write");
-		const { events } = await this.handle.read();
-		for (const event of events) {
-			if (event.type !== "graph/event" || event.ignorable !== true) throw new Error(`graph: invalid persisted event at seq ${event.seq}`);
-			const stored = event;
-			const next = this.state.clone();
-			next.apply(stored.data);
-			this.state = next;
-			this.nextSeq = event.seq + 1;
+	async active() {
+		return this.store(this.activeStoreId());
+	}
+	activeStoreId() {
+		if (this.activeId === void 0) throw new Error("graph: no graph selected");
+		return this.activeId;
+	}
+	async store(id) {
+		const store = this.load(id);
+		await store.ready;
+		return store;
+	}
+	load(id) {
+		if (this.closing) throw new Error("graph: service is closing");
+		assertStoreId(id);
+		const existing = this.stores.get(id);
+		if (existing !== void 0) return existing;
+		const store = {
+			id,
+			sessionId: SessionId(id),
+			state: new GraphState(id),
+			nextSeq: 0,
+			ready: Promise.resolve(),
+			writes: Promise.resolve()
+		};
+		store.ready = this.open(store);
+		this.stores.set(id, store);
+		return store;
+	}
+	async open(store) {
+		try {
+			const listed = (await this.ctx.sessionPersistence.list()).filter((item) => item.header.id === store.sessionId);
+			if (listed.length > 1) throw new Error(`graph: duplicate store session "${store.id}"`);
+			store.handle = listed.length === 0 ? await this.ctx.sessionPersistence.create(this.header(store.sessionId)) : await this.ctx.sessionPersistence.open(store.sessionId, "write");
+			const { events } = await store.handle.read();
+			for (const event of events) {
+				if (event.type !== "graph/event" || event.ignorable !== true) throw new Error(`graph: invalid persisted event at seq ${event.seq}`);
+				const next = store.state.clone();
+				next.apply(event.data);
+				store.state = next;
+				store.nextSeq = event.seq + 1;
+			}
+			await store.handle.flush();
+		} catch (error) {
+			await store.handle?.close();
+			throw error;
 		}
-		await this.handle.flush();
+	}
+	async close() {
+		this.closing = true;
+		const results = await Promise.allSettled([...this.stores.values()].map(async (store) => {
+			await store.ready;
+			await store.writes;
+			await store.handle?.close();
+		}));
+		this.stores.clear();
+		for (const result of results) if (result.status === "rejected") throw result.reason;
 	}
 	header(storeId) {
 		return {

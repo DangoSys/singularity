@@ -69,105 +69,142 @@ const DEFAULT_ROOT = {
 
 //#endregion
 //#region src/index.ts
+function assertId(id) {
+	if (!/^[A-Za-z0-9._-]+$/.test(id)) throw new Error("layout: invalid store id " + id);
+}
 var LayoutService = class extends Service {
 	static inject = ["sessionPersistence"];
-	ready;
-	storeId;
-	handle;
-	state;
-	nextSeq = 0;
-	writes = Promise.resolve();
-	active = false;
+	entries = /* @__PURE__ */ new Map();
+	activeId;
+	closing = false;
 	constructor(ctx, config = {}) {
 		super(ctx, "layout");
-		const rawId = config.storeId ?? "layout-idle";
-		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`layout: invalid store id "${rawId}"`);
-		this.storeId = SessionId(rawId);
-		this.state = new LayoutState(rawId);
-		this.ready = this.open(ctx, this.storeId);
-		ctx.effect(() => () => this.ready.then(() => this.handle?.close()), "layout:persistence");
+		this.openEntry(config.storeId ?? "layout-idle");
+		ctx.effect(() => () => this.close(), "layout:persistence");
 	}
-	async switchStore(rawId) {
-		if (!/^[A-Za-z0-9._-]+$/.test(rawId)) throw new Error(`layout: invalid store id "${rawId}"`);
-		const nextId = SessionId(rawId);
-		if (this.active && nextId === this.storeId) return this.state.snapshot();
-		const run = this.writes.then(async () => {
-			await this.ready;
-			await this.handle?.flush();
-			this.handle?.close();
-			this.handle = void 0;
-			this.storeId = nextId;
-			this.state = new LayoutState(rawId);
-			this.nextSeq = 0;
-			this.ready = this.open(this.ctx, nextId);
-			await this.ready;
-			this.active = true;
-			const snap = this.state.snapshot();
-			this.ctx.emit("layout/change", snap);
-			return snap;
-		});
-		this.writes = run.then(() => void 0);
-		return run;
+	async switchStore(id) {
+		const entry = await this.entry(id);
+		this.activeId = id;
+		const snap = entry.state.snapshot();
+		this.ctx.emit("layout/change", snap);
+		return snap;
+	}
+	clearActive() {
+		if (this.closing) throw new Error("layout: service is closing");
+		this.activeId = void 0;
 	}
 	async snapshot() {
-		await this.ready;
-		if (!this.active) throw new Error("layout: no graph selected");
-		return this.state.snapshot();
+		return (await this.active()).state.snapshot();
+	}
+	async snapshotIn(id) {
+		return (await this.entry(id)).state.snapshot();
 	}
 	async set(sessionId, node) {
-		await this.commit([{
+		await this.setIn(this.activeIdOf(), sessionId, node);
+	}
+	async setIn(id, sessionId, node) {
+		await this.commitIn(id, [{
 			kind: "node/set",
 			sessionId,
 			node
 		}]);
 	}
 	async remove(sessionId) {
-		await this.commit([{
+		await this.removeIn(this.activeIdOf(), sessionId);
+	}
+	async removeIn(id, sessionId) {
+		await this.commitIn(id, [{
 			kind: "node/remove",
 			sessionId
 		}]);
 	}
 	async commit(events) {
+		await this.commitIn(this.activeIdOf(), events);
+	}
+	async commitIn(id, events) {
 		if (events.length === 0) throw new Error("layout: cannot commit an empty event batch");
-		if (!this.active) throw new Error("layout: no graph selected");
-		const run = this.writes.then(async () => {
-			await this.ready;
-			const next = this.state.clone();
+		const entry = this.openEntry(id);
+		const run = entry.writes.then(async () => {
+			await entry.ready;
+			const next = entry.state.clone();
 			for (const event of events) next.apply(event);
-			const records = events.map((event, index) => ({
+			const records = events.map((data, index) => ({
 				type: "layout/event",
-				seq: SessionSeq(this.nextSeq + index),
+				seq: SessionSeq(entry.nextSeq + index),
 				time: Date.now(),
-				data: event,
+				data,
 				ignorable: true
 			}));
-			await this.handle.append(records);
-			this.state = next;
-			this.nextSeq += records.length;
-			this.ctx.emit("layout/change", this.state.snapshot());
+			await entry.handle.append(records);
+			entry.state = next;
+			entry.nextSeq += records.length;
+			this.ctx.emit("layout/change", entry.state.snapshot());
 		});
-		this.writes = run;
-		return run;
+		entry.writes = run.then(() => void 0, () => void 0);
+		await run;
 	}
-	async open(ctx, storeId) {
-		const listed = (await ctx.sessionPersistence.list()).filter((item) => item.header.id === storeId);
-		if (listed.length > 1) throw new Error(`layout: duplicate store session "${storeId}"`);
-		this.handle = listed.length === 0 ? await ctx.sessionPersistence.create(this.header(storeId)) : await ctx.sessionPersistence.open(storeId, "write");
-		const { events } = await this.handle.read();
-		for (const event of events) {
-			if (event.type !== "layout/event" || event.ignorable !== true) throw new Error(`layout: invalid persisted event at seq ${event.seq}`);
-			const stored = event;
-			const next = this.state.clone();
-			next.apply(stored.data);
-			this.state = next;
-			this.nextSeq = event.seq + 1;
+	async active() {
+		return this.entry(this.activeIdOf());
+	}
+	activeIdOf() {
+		if (this.activeId === void 0) throw new Error("layout: no graph selected");
+		return this.activeId;
+	}
+	async entry(id) {
+		const entry = this.openEntry(id);
+		await entry.ready;
+		return entry;
+	}
+	openEntry(id) {
+		if (this.closing) throw new Error("layout: service is closing");
+		assertId(id);
+		const existing = this.entries.get(id);
+		if (existing) return existing;
+		const entry = {
+			id,
+			sessionId: SessionId(id),
+			state: new LayoutState(id),
+			nextSeq: 0,
+			ready: Promise.resolve(),
+			writes: Promise.resolve()
+		};
+		entry.ready = this.open(entry);
+		this.entries.set(id, entry);
+		return entry;
+	}
+	async open(entry) {
+		try {
+			const listed = (await this.ctx.sessionPersistence.list()).filter((item) => item.header.id === entry.sessionId);
+			if (listed.length > 1) throw new Error("layout: duplicate store session " + entry.id);
+			entry.handle = listed.length === 0 ? await this.ctx.sessionPersistence.create(this.header(entry.sessionId)) : await this.ctx.sessionPersistence.open(entry.sessionId, "write");
+			const { events } = await entry.handle.read();
+			for (const event of events) {
+				if (event.type !== "layout/event" || event.ignorable !== true) throw new Error("layout: invalid persisted event");
+				const next = entry.state.clone();
+				next.apply(event.data);
+				entry.state = next;
+				entry.nextSeq = event.seq + 1;
+			}
+			await entry.handle.flush();
+		} catch (error) {
+			await entry.handle?.close();
+			throw error;
 		}
-		await this.handle.flush();
 	}
-	header(storeId) {
+	async close() {
+		this.closing = true;
+		const results = await Promise.allSettled([...this.entries.values()].map(async (entry) => {
+			await entry.ready;
+			await entry.writes;
+			await entry.handle?.close();
+		}));
+		this.entries.clear();
+		for (const result of results) if (result.status === "rejected") throw result.reason;
+	}
+	header(id) {
 		return {
 			version: SESSION_FORMAT_VERSION,
-			id: storeId,
+			id,
 			createdAt: Date.now(),
 			isSeeded: false
 		};

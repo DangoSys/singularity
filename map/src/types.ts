@@ -48,7 +48,7 @@ export interface LayoutSnapshot {
   readonly nodes: Readonly<Record<string, CanvasNode>>
 }
 
-export interface AgentData extends AgentNode {
+export interface AgentData extends AgentNode, Record<string, unknown> {
   readonly width: number
   readonly height: number
   readonly shape: NodeShape

@@ -13,29 +13,17 @@ export function registerEvents(ctx: Context, broadcast: GraphBroadcast): () => v
         send(res, 405, 'text/plain; charset=utf-8', 'method not allowed')
         return
       }
+      const id = new URL(req.url!, 'http://dsh.local').searchParams.get('graphId')
+      if (id === null) throw new Error('events: graphId required')
+      const graph = await ctx.graphs.get(id)
       res.writeHead(200, {
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-cache',
         connection: 'keep-alive',
       })
-      broadcast.clients.add(res)
-      req.on('close', () => broadcast.clients.delete(res))
-      try {
-        res.write(`event: graph\ndata: ${JSON.stringify(await ctx.graph.snapshot())}\n\n`)
-        res.write(`event: layout\ndata: ${JSON.stringify(await ctx.layout.snapshot())}\n\n`)
-      } catch (error) {
-        res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`)
-      }
-      try {
-        res.write(`event: graphs\ndata: ${JSON.stringify(await ctx.graphs.snapshot())}\n\n`)
-      } catch (error) {
-        res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`)
-      }
-      try {
-        res.write(`event: hitl\ndata: ${JSON.stringify({ pending: ctx.hitl.list() })}\n\n`)
-      } catch (error) {
-        res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`)
-      }
+      res.on('close', () => broadcast.clients.delete(res))
+      broadcast.subscribe(res, graph)
+      res.write(`event: hitl\ndata: ${JSON.stringify({ pending: ctx.hitl.list() })}\n\n`)
     },
   })
 }

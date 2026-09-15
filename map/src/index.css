@@ -1,55 +1,57 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --font-sans: 'Inter Variable', -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Segoe UI', sans-serif;
-  --color-surface: #FAF9F7;
-  --color-card: #FFFFFF;
-  --color-wash: #F5F3F0;
-  --color-line: #E8E5E0;
-  --color-line-strong: #D4CFC7;
-  --color-ink: #1A1A1A;
-  --color-ink-muted: #6B6560;
-  --color-ink-faint: #968C77;
-  --color-accent: #6B5CE7;
-  --color-accent-strong: #5A4BD6;
-  --color-warm: #E08A3C;
-  --color-trace: #F59E0B;
-  --color-watch: #DC2626;
+  --color-surface: #faf9f7;
+  --color-card: #ffffff;
+  --color-wash: #f5f3f0;
+  --color-line: #e8e5e0;
+  --color-line-strong: #d4cfc7;
+  --color-ink: #1a1a1a;
+  --color-ink-muted: #6b6560;
+  --color-ink-faint: #968c77;
+  --color-accent: #6b5ce7;
+  --color-accent-strong: #5a4bd6;
+  --color-warm: #e08a3c;
+  --color-trace: #f59e0b;
+  --color-watch: #dc2626;
 }
 
 :root {
   color-scheme: light;
-  --canvas-dot: #E8E5E0;
-  --canvas-grid-fine: rgba(84, 100, 128, 0.10);
+  --canvas-dot: #e8e5e0;
+  --canvas-grid-fine: rgba(84, 100, 128, 0.1);
   --canvas-grid-major: rgba(84, 100, 128, 0.22);
   --sg-zoom: 1;
 }
 
 :root[data-paper='grid'] {
-  --color-surface: #F7F6F2;
+  --color-surface: #f7f6f2;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --color-surface: #211E18;
-  --color-card: #322D25;
-  --color-wash: #3B352B;
-  --color-line: #4C4536;
-  --color-line-strong: #5E5645;
-  --color-ink: #EDE7DA;
-  --color-ink-muted: #B5AB97;
-  --color-ink-faint: #948A73;
-  --color-accent: #A79FF4;
-  --color-accent-strong: #B9B2F7;
-  --color-warm: #E3A45E;
-  --color-trace: #D9A83E;
-  --color-watch: #E0796F;
-  --canvas-dot: #423B2E;
+  --color-surface: #211e18;
+  --color-card: #322d25;
+  --color-wash: #3b352b;
+  --color-line: #4c4536;
+  --color-line-strong: #5e5645;
+  --color-ink: #ede7da;
+  --color-ink-muted: #b5ab97;
+  --color-ink-faint: #948a73;
+  --color-accent: #a79ff4;
+  --color-accent-strong: #b9b2f7;
+  --color-warm: #e3a45e;
+  --color-trace: #d9a83e;
+  --color-watch: #e0796f;
+  --canvas-dot: #423b2e;
   --canvas-grid-fine: rgba(237, 231, 218, 0.05);
   --canvas-grid-major: rgba(237, 231, 218, 0.11);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   height: 100%;
   background: var(--color-surface);
@@ -110,8 +112,13 @@ html, body, #root {
   border: 1px solid var(--color-line);
   border-radius: 12px;
   color: var(--color-ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
   position: relative;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -130,13 +137,21 @@ html, body, #root {
 
 .thought-node:hover {
   border-color: var(--color-line-strong);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09), 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.09),
+    0 2px 4px rgba(0, 0, 0, 0.05);
   transform: translateY(-1px);
 }
 
-.thought-node.root-node::before { background: var(--color-accent); }
-.thought-node.waiting-node::before { background: var(--color-warm); }
-.thought-node.failed-node::before { background: var(--color-watch); }
+.thought-node.root-node::before {
+  background: var(--color-accent);
+}
+.thought-node.waiting-node::before {
+  background: var(--color-warm);
+}
+.thought-node.failed-node::before {
+  background: var(--color-watch);
+}
 .thought-node.waiting-node {
   border-color: color-mix(in srgb, var(--color-warm) 35%, var(--color-line));
 }
@@ -156,7 +171,9 @@ html, body, #root {
   border-width: 3px;
   min-width: 160px;
 }
-.thought-node.map-node::before { display: none; }
+.thought-node.map-node::before {
+  display: none;
+}
 .thought-node.map-node.root-node {
   border-color: color-mix(in srgb, var(--color-accent) 85%, var(--color-line));
 }
@@ -238,10 +255,18 @@ html, body, #root {
   vertical-align: middle;
 }
 
-.sg-dot[data-status='running'] { background: var(--color-accent); }
-.sg-dot[data-status='done'] { background: #10b981; }
-.sg-dot[data-status='waiting'] { background: var(--color-warm); }
-.sg-dot[data-status='failed'] { background: var(--color-watch); }
+.sg-dot[data-status='running'] {
+  background: var(--color-accent);
+}
+.sg-dot[data-status='done'] {
+  background: #10b981;
+}
+.sg-dot[data-status='waiting'] {
+  background: var(--color-warm);
+}
+.sg-dot[data-status='failed'] {
+  background: var(--color-watch);
+}
 
 .sg-glyph-wrap {
   width: 120px;
@@ -265,10 +290,22 @@ html, body, #root {
   color: var(--color-ink);
 }
 
-.sg-glyph-seal[data-status='running'] { background: var(--color-accent); color: #fff; }
-.sg-glyph-seal[data-status='waiting'] { background: var(--color-warm); color: #fff; }
-.sg-glyph-seal[data-status='done'] { background: #10b981; color: #fff; }
-.sg-glyph-seal[data-status='failed'] { background: var(--color-watch); color: #fff; }
+.sg-glyph-seal[data-status='running'] {
+  background: var(--color-accent);
+  color: #fff;
+}
+.sg-glyph-seal[data-status='waiting'] {
+  background: var(--color-warm);
+  color: #fff;
+}
+.sg-glyph-seal[data-status='done'] {
+  background: #10b981;
+  color: #fff;
+}
+.sg-glyph-seal[data-status='failed'] {
+  background: var(--color-watch);
+  color: #fff;
+}
 
 .glyph-selected .sg-glyph-seal {
   outline: 3px solid var(--color-accent);
@@ -338,7 +375,9 @@ html, body, #root {
 }
 
 @keyframes sg-flow {
-  to { stroke-dashoffset: calc(-31px / var(--sg-zoom)); }
+  to {
+    stroke-dashoffset: calc(-31px / var(--sg-zoom));
+  }
 }
 
 .react-flow__controls,
@@ -350,7 +389,9 @@ html, body, #root {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sg-flow-ov { animation: none; }
+  .sg-flow-ov {
+    animation: none;
+  }
 }
 
 .sg-focus {
@@ -370,7 +411,9 @@ html, body, #root {
   overflow: hidden;
 }
 
-.sg-focus.resizing { user-select: none; }
+.sg-focus.resizing {
+  user-select: none;
+}
 
 .sg-focus-resize {
   position: absolute;
@@ -422,8 +465,14 @@ html, body, #root {
   color: var(--color-ink-muted);
 }
 
-.sg-focus-title .ready { color: #059669; font-weight: 700; }
-.sg-focus-title .setup { color: var(--color-warm); font-weight: 700; }
+.sg-focus-title .ready {
+  color: #059669;
+  font-weight: 700;
+}
+.sg-focus-title .setup {
+  color: var(--color-warm);
+  font-weight: 700;
+}
 
 .sg-focus-close {
   border: 0;
@@ -468,7 +517,11 @@ html, body, #root {
 }
 
 .sg-focus-session {
-  font: 500 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    500 11px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   color: var(--color-ink-muted);
   word-break: break-all;
 }
@@ -486,22 +539,90 @@ html, body, #root {
   font-size: 12px;
 }
 
-.sg-focus-role {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-ink-muted);
+.sg-focus-msg {
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--color-warm);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-warm) 5%, var(--color-card));
+  padding: 9px 11px;
 }
 
-.sg-focus-msg[data-role='user'] .sg-focus-role { color: var(--color-accent-strong); }
+.sg-focus-msg[data-role='user'] {
+  border-left-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-card));
+}
 
 .sg-focus-text {
-  margin-top: 3px;
   font-size: 12px;
   line-height: 1.45;
-  white-space: pre-wrap;
   word-break: break-word;
+}
+
+.sg-focus-text > :first-child {
+  margin-top: 0;
+}
+.sg-focus-text > :last-child {
+  margin-bottom: 0;
+}
+.sg-focus-text p {
+  margin: 0 0 8px;
+}
+.sg-focus-text h1,
+.sg-focus-text h2,
+.sg-focus-text h3 {
+  margin: 14px 0 6px;
+  color: var(--color-ink);
+  font-weight: 700;
+  line-height: 1.25;
+}
+.sg-focus-text h1 {
+  font-size: 16px;
+}
+.sg-focus-text h2 {
+  font-size: 14px;
+}
+.sg-focus-text h3 {
+  font-size: 13px;
+}
+.sg-focus-text ul,
+.sg-focus-text ol {
+  margin: 6px 0 10px;
+  padding-left: 20px;
+}
+.sg-focus-text li {
+  margin: 3px 0;
+}
+.sg-focus-text code {
+  border-radius: 4px;
+  background: var(--color-wash);
+  padding: 1px 4px;
+  color: var(--color-accent-strong);
+  font:
+    500 0.92em ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+.sg-focus-text pre {
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-wash);
+  padding: 8px;
+}
+.sg-focus-text pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--color-ink);
+}
+.sg-focus-text blockquote {
+  margin: 8px 0;
+  border-left: 3px solid var(--color-line-strong);
+  padding-left: 10px;
+  color: var(--color-ink-muted);
+}
+.sg-focus-text a {
+  color: var(--color-accent-strong);
 }
 
 .sg-focus-lock {
@@ -509,9 +630,26 @@ html, body, #root {
   padding: 12px 14px;
   border-top: 1px solid var(--color-line);
   background: color-mix(in srgb, var(--color-warm) 12%, var(--color-card));
-  color: var(--color-ink);
+  color: var(--color-ink-muted);
   font-size: 12px;
   line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.sg-focus-lock strong {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+.sg-focus-lock em {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-warm) 18%, var(--color-card));
+  padding: 2px 7px;
+  color: color-mix(in srgb, var(--color-warm) 78%, var(--color-ink));
+  font-style: normal;
+  font-weight: 650;
 }
 
 .sg-focus-input {
@@ -589,4 +727,3 @@ html, body, #root {
 .sg-hitl button.reject {
   background: var(--color-watch);
 }
-

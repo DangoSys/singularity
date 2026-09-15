@@ -48,29 +48,17 @@ function registerEvents(ctx, broadcast) {
 				send(res, 405, "text/plain; charset=utf-8", "method not allowed");
 				return;
 			}
+			const id = new URL(req.url, "http://dsh.local").searchParams.get("graphId");
+			if (id === null) throw new Error("events: graphId required");
+			const graph = await ctx.graphs.get(id);
 			res.writeHead(200, {
 				"content-type": "text/event-stream; charset=utf-8",
 				"cache-control": "no-cache",
 				connection: "keep-alive"
 			});
-			broadcast.clients.add(res);
-			req.on("close", () => broadcast.clients.delete(res));
-			try {
-				res.write(`event: graph\ndata: ${JSON.stringify(await ctx.graph.snapshot())}\n\n`);
-				res.write(`event: layout\ndata: ${JSON.stringify(await ctx.layout.snapshot())}\n\n`);
-			} catch (error) {
-				res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`);
-			}
-			try {
-				res.write(`event: graphs\ndata: ${JSON.stringify(await ctx.graphs.snapshot())}\n\n`);
-			} catch (error) {
-				res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`);
-			}
-			try {
-				res.write(`event: hitl\ndata: ${JSON.stringify({ pending: ctx.hitl.list() })}\n\n`);
-			} catch (error) {
-				res.write(`event: error\ndata: ${JSON.stringify({ message: error instanceof Error ? error.message : String(error) })}\n\n`);
-			}
+			res.on("close", () => broadcast.clients.delete(res));
+			broadcast.subscribe(res, graph);
+			res.write(`event: hitl\ndata: ${JSON.stringify({ pending: ctx.hitl.list() })}\n\n`);
 		}
 	});
 }
@@ -87,7 +75,9 @@ function registerGraph(ctx) {
 				return;
 			}
 			try {
-				send(res, 200, "application/json; charset=utf-8", await ctx.graph.snapshot());
+				const id = new URL(req.url, "http://dsh.local").searchParams.get("graphId");
+				if (id === null) throw new Error("graph: graphId required");
+				send(res, 200, "application/json; charset=utf-8", await ctx.graphs.view(id));
 			} catch (error) {
 				send(res, 409, "text/plain; charset=utf-8", error instanceof Error ? error.message : String(error));
 			}
@@ -112,7 +102,7 @@ function registerGraphEnvs(ctx) {
 				path: env.path,
 				componentCount: env.components.length,
 				sessionCount: env.sessionIds.length,
-				available: !bound.has(env.id) && env.sessionIds.length === 0,
+				available: env.components.length > 0 && !bound.has(env.id) && env.sessionIds.length === 0,
 				bound: bound.has(env.id)
 			})) });
 		}
@@ -153,7 +143,14 @@ function registerGraphs(ctx) {
 		handler: async (req, res) => {
 			try {
 				if (req.method === "GET") {
-					send(res, 200, "application/json; charset=utf-8", await ctx.graphs.snapshot());
+					const snapshot = await ctx.graphs.snapshot();
+					send(res, 200, "application/json; charset=utf-8", {
+						...snapshot,
+						graphs: snapshot.graphs.map((graph) => ({
+							...graph,
+							repos: ctx.envBuilder.store.get(graph.envId).components.map((component) => `${component.owner}/${component.repo}`)
+						}))
+					});
 					return;
 				}
 				if (req.method === "POST") {
@@ -249,8 +246,11 @@ function registerLayout(ctx) {
 		path: LAYOUT_PATH,
 		handler: async (req, res) => {
 			try {
+				const id = new URL(req.url, "http://dsh.local").searchParams.get("graphId");
+				if (id === null) throw new Error("layout: graphId required");
+				const graph = await ctx.graphs.get(id);
 				if (req.method === "GET") {
-					send(res, 200, "application/json; charset=utf-8", await ctx.layout.snapshot());
+					send(res, 200, "application/json; charset=utf-8", await ctx.layout.snapshotIn(graph.layoutStoreId));
 					return;
 				}
 				if (req.method !== "PUT") {
@@ -260,8 +260,9 @@ function registerLayout(ctx) {
 				const body = await readJson(req);
 				if (typeof body.sessionId !== "string" || body.sessionId.length === 0) throw new Error("layout put: sessionId required");
 				if (body.node === void 0 || typeof body.node !== "object") throw new Error("layout put: node required");
-				await ctx.layout.set(body.sessionId, body.node);
-				send(res, 200, "application/json; charset=utf-8", await ctx.layout.snapshot());
+				if (!(await ctx.graph.snapshotIn(graph.graphStoreId)).agents.some((agent) => agent.id === body.sessionId)) throw new Error("layout: session belongs to another graph");
+				await ctx.layout.setIn(graph.layoutStoreId, body.sessionId, body.node);
+				send(res, 200, "application/json; charset=utf-8", await ctx.layout.snapshotIn(graph.layoutStoreId));
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				send(res, message.includes("no graph selected") ? 409 : 400, "text/plain; charset=utf-8", message);
@@ -328,20 +329,42 @@ function registerMapStatic(ctx) {
 //#endregion
 //#region src/web/libs/broadcast.ts
 var GraphBroadcast = class {
-	clients = /* @__PURE__ */ new Set();
+	clients = /* @__PURE__ */ new Map();
+	constructor(ctx) {
+		this.ctx = ctx;
+	}
+	subscribe(res, graph) {
+		this.clients.set(res, {
+			graph,
+			writes: Promise.resolve()
+		});
+		this.snapshot(res);
+	}
+	snapshot(res) {
+		const client = this.clients.get(res);
+		client.writes = client.writes.then(async () => {
+			const view = await this.ctx.graphs.view(client.graph.id);
+			if (!res.destroyed) res.write(`event: snapshot\ndata: ${JSON.stringify(view)}\n\n`);
+		}).catch((error) => {
+			this.clients.delete(res);
+			res.destroy(error);
+		});
+	}
 	publishEvent(name$1, value) {
 		const frame = `event: ${name$1}\ndata: ${JSON.stringify(value)}\n\n`;
-		for (const res of this.clients) if (res.destroyed) this.clients.delete(res);
+		for (const [res, client] of this.clients) if (res.destroyed) this.clients.delete(res);
+		else if (name$1 === "graphs") if (value.graphs.some((graph) => graph.id === client.graph.id)) this.snapshot(res);
+		else res.end();
 		else res.write(frame);
 	}
 	publishLayout(snapshot) {
-		this.publishEvent("layout", snapshot);
+		for (const [res, client] of this.clients) if (client.graph.layoutStoreId === snapshot.id) this.snapshot(res);
 	}
 	publish(snapshot) {
-		this.publishEvent("graph", snapshot);
+		for (const [res, client] of this.clients) if (client.graph.graphStoreId === snapshot.id) this.snapshot(res);
 	}
 	close() {
-		for (const res of this.clients) res.end();
+		for (const res of this.clients.keys()) res.end();
 		this.clients.clear();
 	}
 };
@@ -359,7 +382,7 @@ const inject = [
 	"hitl"
 ];
 function apply(ctx) {
-	const broadcast = new GraphBroadcast();
+	const broadcast = new GraphBroadcast(ctx);
 	ctx.on("graph/change", (snapshot) => broadcast.publish(snapshot));
 	ctx.on("layout/change", (snapshot) => broadcast.publishLayout(snapshot));
 	ctx.on("graphs/change", (snapshot) => broadcast.publishEvent("graphs", snapshot));

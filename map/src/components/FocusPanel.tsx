@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useStore, type ChatRow, type HitlPending } from '../store'
 
 const PANEL_MIN = 320
@@ -14,30 +16,49 @@ function loadWidth(): number {
 }
 
 function HitlCard({ item }: { item: HitlPending }) {
-  const answerHitl = useStore((s) => s.answerHitl)
+  const answerHitl = useStore(s => s.answerHitl)
   const [text, setText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const submit = async (
+    answer: { kind: 'ask'; text: string } | { kind: 'approve'; decision: 'approve' | 'reject' },
+  ) => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      await answerHitl(item.id, answer)
+      setText('')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (item.kind === 'ask') {
     return (
       <form
         className="sg-hitl"
-        onSubmit={(e) => {
+        onSubmit={e => {
           e.preventDefault()
           const value = text.trim()
           if (value.length === 0) throw new Error('map: empty hitl answer')
-          void answerHitl(item.id, { kind: 'ask', text: value })
-          setText('')
+          void submit({ kind: 'ask', text: value })
         }}
       >
         <div className="sg-hitl-label">Ask</div>
         <div className="sg-hitl-prompt">{item.prompt}</div>
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          disabled={submitting}
+          onChange={e => setText(e.target.value)}
           rows={3}
           placeholder="Your answer…"
         />
-        <button type="submit">Submit</button>
+        <button type="submit" disabled={submitting || text.trim().length === 0}>
+          Submit
+        </button>
+        {error !== null && <div role="alert">{error}</div>}
       </form>
     )
   }
@@ -47,55 +68,75 @@ function HitlCard({ item }: { item: HitlPending }) {
       <div className="sg-hitl-label">Approve</div>
       <div className="sg-hitl-prompt">{item.prompt}</div>
       <div className="sg-hitl-actions">
-        <button type="button" onClick={() => void answerHitl(item.id, { kind: 'approve', decision: 'approve' })}>
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => void submit({ kind: 'approve', decision: 'approve' })}
+        >
           Approve
         </button>
-        <button type="button" className="reject" onClick={() => void answerHitl(item.id, { kind: 'approve', decision: 'reject' })}>
+        <button
+          type="button"
+          disabled={submitting}
+          className="reject"
+          onClick={() => void submit({ kind: 'approve', decision: 'reject' })}
+        >
           Reject
         </button>
       </div>
+      {error !== null && <div role="alert">{error}</div>}
     </div>
   )
 }
 
 function MessageList({ rows }: { rows: ChatRow[] }) {
-  const end = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLDivElement>(null)
+  const follow = useRef(true)
   useEffect(() => {
-    end.current?.scrollIntoView({ block: 'end' })
+    if (follow.current && list.current !== null) list.current.scrollTop = list.current.scrollHeight
   }, [rows])
   if (rows.length === 0) {
     return <div className="sg-focus-empty">No messages yet</div>
   }
   return (
-    <div className="sg-focus-msgs">
+    <div
+      ref={list}
+      className="sg-focus-msgs"
+      onScroll={event => {
+        const element = event.currentTarget
+        follow.current = element.scrollHeight - element.scrollTop - element.clientHeight < 32
+      }}
+    >
       {rows.map((row, i) => (
         <div key={`${row.role}-${i}`} className="sg-focus-msg" data-role={row.role}>
-          <div className="sg-focus-role">{row.role}</div>
-          <div className="sg-focus-text">{row.text}</div>
+          <div className="sg-focus-text">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{row.text}</ReactMarkdown>
+          </div>
         </div>
       ))}
-      <div ref={end} />
     </div>
   )
 }
 
 export default function FocusPanel() {
-  const selectedId = useStore((s) => s.selectedId)
-  const graphMeta = useStore((s) => s.graphMeta)
-  const chat = useStore((s) => s.chat)
-  const hitl = useStore((s) => s.hitl)
-  const sendPrompt = useStore((s) => s.sendPrompt)
-  const setSelected = useStore((s) => s.setSelected)
+  const selectedId = useStore(s => s.selectedId)
+  const graphMeta = useStore(s => s.graphMeta)
+  const chat = useStore(s => s.chat)
+  const hitl = useStore(s => s.hitl)
+  const sendPrompt = useStore(s => s.sendPrompt)
+  const setSelected = useStore(s => s.setSelected)
   const [width, setWidth] = useState(loadWidth)
   const [resizing, setResizing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const agent = useStore(s => s.graph?.agents.find(a => a.id === selectedId))
 
   if (selectedId === null) return null
 
-  const agent = useStore.getState().graph?.agents.find((a) => a.id === selectedId)
   if (agent === undefined) throw new Error(`map: focus panel missing agent ${selectedId}`)
 
-  const sessionHitl = hitl.filter((h) => h.sessionId === selectedId)
+  const sessionHitl = hitl.filter(h => h.sessionId === selectedId)
   const ready = graphMeta?.ready === true
   const freeLocked = !ready
   const rows = chat.sessionId === selectedId ? chat.rows : []
@@ -122,11 +163,7 @@ export default function FocusPanel() {
   }
 
   return (
-    <aside
-      className={`sg-focus${resizing ? ' resizing' : ''}`}
-      style={{ width }}
-      data-focus-panel
-    >
+    <aside className={`sg-focus${resizing ? ' resizing' : ''}`} style={{ width }} data-focus-panel>
       <div
         className="sg-focus-resize"
         onPointerDown={onResizePointerDown}
@@ -149,7 +186,7 @@ export default function FocusPanel() {
           <div className="sg-focus-section-title">Session</div>
           <div className="sg-focus-session">{selectedId}</div>
         </section>
-        {sessionHitl.map((item) => (
+        {sessionHitl.map(item => (
           <HitlCard key={item.id} item={item} />
         ))}
         <section className="sg-focus-section grow">
@@ -159,32 +196,47 @@ export default function FocusPanel() {
       </div>
       {freeLocked ? (
         <div className="sg-focus-lock">
-          Graph is not ready. Free chat is locked. Answer HITL ask/approve above if the agent requested intervention; free chat opens after graph_mark_ready.
+          <strong>Free chat to this node is locked.</strong>
+          <span>
+            Because <em>(Graph is not ready.)</em>
+          </span>
         </div>
       ) : (
         <form
           className="sg-focus-input"
-          onSubmit={(e) => {
+          onSubmit={async e => {
             e.preventDefault()
             const text = draft.trim()
             if (text.length === 0) throw new Error('map: empty follow-up')
-            setDraft('')
-            void sendPrompt(selectedId, text)
+            setSending(true)
+            setError(null)
+            try {
+              await sendPrompt(selectedId, text)
+              setDraft('')
+            } catch (error) {
+              setError(error instanceof Error ? error.message : String(error))
+            } finally {
+              setSending(false)
+            }
           }}
         >
           <textarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            disabled={sending}
+            onChange={e => setDraft(e.target.value)}
             rows={2}
             placeholder="Follow up…"
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
                 e.currentTarget.form?.requestSubmit()
               }
             }}
           />
-          <button type="submit">Send</button>
+          <button type="submit" disabled={sending || draft.trim().length === 0}>
+            {sending ? 'Sending…' : 'Send'}
+          </button>
+          {error !== null && <div role="alert">{error}</div>}
         </form>
       )}
     </aside>

@@ -32,6 +32,7 @@
     "@deepseek-ai/dsh-llm": "*"
   },
   "dependencies": {
+    "@dangosys/dsh-singularity-agent-runtime": "workspace:*",
     "@dangosys/dsh-singularity-graphs": "workspace:*"
   },
   "license": "Apache-2.0",

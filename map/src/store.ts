@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Edge, Node } from '@xyflow/react'
 import type { AgentData, CanvasNode, GraphSnapshot, LayoutSnapshot } from './types'
-import { answerHitl, fetchGraph, fetchGraphs, fetchHitl, fetchLayout, openEvents, putLayout } from './api'
+import { answerHitl, fetchGraph, fetchHitl, openEvents, putLayout, GRAPH_ID, type ViewSnapshot } from './api'
 
 export type FlowNode = Node<AgentData>
 export type FlowEdge = Edge<{ kind: 'spawn' | 'handoff'; brief?: string }>
@@ -10,6 +10,8 @@ export interface GraphMeta {
   readonly id: string
   readonly name: string
   readonly ready: boolean
+  readonly graphStoreId: string
+  readonly layoutStoreId: string
   readonly rootSessionId: string
 }
 
@@ -37,25 +39,33 @@ interface Store {
   error: string | null
   empty: boolean
   source: EventSource | null
+  generation: number
   chat: { sessionId: string | null; rows: ChatRow[] }
   hitl: HitlPending[]
+  submission: { id: string; resolve: () => void; reject: (error: Error) => void } | null
+  finishPrompt: (id: string, error?: string) => void
   boot: () => Promise<void>
-  applyGraph: (g: GraphSnapshot) => void
-  applyLayout: (l: LayoutSnapshot) => void
-  applyGraphs: (graphs: { graphs: GraphMeta[]; selectedId?: string }) => void
+  applySnapshot: (view: ViewSnapshot) => void
   applyHitl: (pending: HitlPending[]) => void
   applyChat: (sessionId: string, rows: ChatRow[]) => void
   setSelected: (id: string | null) => void
-  setSelectedLocal: (id: string) => void
   setPaper: (p: 'plain' | 'grid') => void
+  setNodes: (nodes: FlowNode[]) => void
   moveNode: (id: string, x: number, y: number) => Promise<void>
   sendPrompt: (sessionId: string, text: string) => Promise<void>
-  answerHitl: (id: string, answer: { kind: 'ask'; text: string } | { kind: 'approve'; decision: 'approve' | 'reject' }) => Promise<void>
+  answerHitl: (
+    id: string,
+    answer: { kind: 'ask'; text: string } | { kind: 'approve'; decision: 'approve' | 'reject' },
+  ) => Promise<void>
 }
 
-function build(graph: GraphSnapshot, layout: LayoutSnapshot, selectedId: string | null): { nodes: FlowNode[]; edges: FlowEdge[] } {
+function build(
+  graph: GraphSnapshot,
+  layout: LayoutSnapshot,
+  selectedId: string | null,
+): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const roots = new Set(graph.roots)
-  const nodes: FlowNode[] = graph.agents.map((agent) => {
+  const nodes: FlowNode[] = graph.agents.map(agent => {
     const geo = layout.nodes[agent.id]
     if (geo === undefined) throw new Error(`map: agent ${agent.id} has no layout`)
     return {
@@ -73,7 +83,7 @@ function build(graph: GraphSnapshot, layout: LayoutSnapshot, selectedId: string 
       style: { width: geo.width, height: geo.height },
     }
   })
-  const edges: FlowEdge[] = graph.edges.map((edge) => ({
+  const edges: FlowEdge[] = graph.edges.map(edge => ({
     id: edge.id,
     type: 'agent',
     source: edge.from,
@@ -119,76 +129,48 @@ export const useStore = create<Store>((set, get) => ({
   error: null,
   empty: false,
   source: null,
+  generation: 0,
   chat: { sessionId: null, rows: [] },
   hitl: [],
+  submission: null,
   async boot() {
     get().source?.close()
-    try {
-      const [graph, layout, graphsSnap, hitlSnap] = await Promise.all([
-        fetchGraph(),
-        fetchLayout(),
-        fetchGraphs(),
-        fetchHitl(),
-      ])
-      const selected = graphsSnap.graphs.find((g) => g.id === graphsSnap.selectedId)
-      if (selected === undefined) throw new Error('map: selected graph missing from registry')
-      const selectedId = get().selectedId ?? selected.rootSessionId
-      const { nodes, edges } = build(graph, layout, selectedId)
-      const source = openEvents({
-        onGraph: (g) => get().applyGraph(g),
-        onLayout: (l) => get().applyLayout(l),
-        onGraphs: (snap) => get().applyGraphs(snap),
-        onHitl: (pending) => get().applyHitl(pending),
-        onError: () => set({ error: 'singularity: event stream closed' }),
-      })
-      set({
-        graph,
-        layout,
-        graphMeta: selected,
-        nodes,
-        edges,
-        selectedId,
-        hitl: hitlSnap.pending,
-        error: null,
-        empty: false,
-        source,
-      })
-      window.parent.postMessage({ type: 'singularity:open', sessionId: selectedId, title: 'Singularity' }, '*')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (message.includes('no graph selected')) {
-        set({
-          graph: null,
-          layout: null,
-          graphMeta: null,
-          nodes: [],
-          edges: [],
-          empty: true,
-          error: null,
-          source: null,
-          selectedId: null,
-          chat: { sessionId: null, rows: [] },
-        })
-        return
-      }
-      throw error
+    if (GRAPH_ID === null) {
+      set({ empty: true })
+      return
     }
+    const generation = get().generation + 1
+    set({ generation, source: null })
+    const [view, hitl] = await Promise.all([fetchGraph(), fetchHitl()])
+    if (get().generation !== generation) return
+    set({ selectedId: view.meta.rootSessionId })
+    get().applySnapshot(view)
+    const source = openEvents({
+      onSnapshot: view => {
+        if (get().generation === generation) get().applySnapshot(view)
+      },
+      onHitl: pending => {
+        if (get().generation === generation) get().applyHitl(pending)
+      },
+      onError: () => {
+        set({ error: 'singularity: event stream closed' })
+      },
+    })
+    set({ hitl: hitl.pending, source })
+    window.parent.postMessage(
+      { type: 'singularity:open', graphId: GRAPH_ID, sessionId: view.meta.rootSessionId },
+      location.origin,
+    )
   },
-  applyGraph(graph) {
-    const layout = get().layout
-    if (layout === null) throw new Error('map: layout missing while applying graph')
-    const { nodes, edges } = build(graph, layout, get().selectedId)
-    set({ graph, nodes, edges, empty: false })
-  },
-  applyLayout(layout) {
-    const graph = get().graph
-    if (graph === null) throw new Error('map: graph missing while applying layout')
-    const { nodes, edges } = build(graph, layout, get().selectedId)
-    set({ layout, nodes, edges })
-  },
-  applyGraphs(snap) {
-    const selected = snap.graphs.find((g) => g.id === snap.selectedId)
-    set({ graphMeta: selected ?? null })
+  applySnapshot({ graph, layout, meta }) {
+    if (meta.id !== GRAPH_ID) throw new Error('map: wrong graph snapshot')
+    if (graph.id !== meta.graphStoreId || layout.id !== meta.layoutStoreId)
+      throw new Error('map: store identity mismatch')
+    const selectedId = get().selectedId
+    if (selectedId !== null && !graph.agents.some(agent => agent.id === selectedId))
+      throw new Error('map: selected agent missing')
+    const next = build(graph, layout, selectedId)
+    set({ graph, layout, graphMeta: meta, ...next, empty: false })
   },
   applyHitl(pending) {
     set({ hitl: pending })
@@ -203,21 +185,20 @@ export const useStore = create<Store>((set, get) => ({
     const { nodes, edges } = build(graph, layout, id)
     set({ selectedId: id, nodes, edges })
     if (id !== null) {
-      const agent = graph.agents.find((a) => a.id === id)
+      const agent = graph.agents.find(a => a.id === id)
       if (agent === undefined) throw new Error(`map: selected unknown agent ${id}`)
-      window.parent.postMessage({ type: 'singularity:open', sessionId: id, title: agent.name }, '*')
+      window.parent.postMessage(
+        { type: 'singularity:open', graphId: GRAPH_ID, sessionId: id, title: agent.name },
+        location.origin,
+      )
     }
-  },
-  setSelectedLocal(id) {
-    const graph = get().graph
-    const layout = get().layout
-    if (graph === null || layout === null) return
-    const { nodes, edges } = build(graph, layout, id)
-    set({ selectedId: id, nodes, edges })
   },
   setPaper(paper) {
     document.documentElement.dataset.paper = paper
     set({ paper })
+  },
+  setNodes(nodes) {
+    set({ nodes })
   },
   async moveNode(id, x, y) {
     const layout = get().layout
@@ -225,15 +206,27 @@ export const useStore = create<Store>((set, get) => ({
     const prev = layout.nodes[id]
     if (prev === undefined) throw new Error(`map: unknown node ${id}`)
     const node: CanvasNode = { ...prev, x, y }
-    const next = await putLayout(id, node)
-    get().applyLayout(next)
+    await putLayout(id, node)
   },
   async sendPrompt(sessionId, text) {
-    window.parent.postMessage({ type: 'singularity:prompt', sessionId, text }, '*')
+    if (get().submission !== null) throw new Error('map: prompt already submitting')
+    const requestId = crypto.randomUUID()
+    const done = new Promise<void>((resolve, reject) => set({ submission: { id: requestId, resolve, reject } }))
+    window.parent.postMessage(
+      { type: 'singularity:prompt', graphId: GRAPH_ID, requestId, sessionId, text },
+      location.origin,
+    )
+    return done
+  },
+  finishPrompt(id, error) {
+    const submission = get().submission
+    if (submission === null || submission.id !== id) throw new Error('map: unexpected prompt result')
+    set({ submission: null })
+    if (error !== undefined) submission.reject(new Error(error))
+    else submission.resolve()
   },
   async answerHitl(id, answer) {
-    const next = await answerHitl(id, answer)
-    set({ hitl: next.pending })
+    await answerHitl(id, answer)
   },
 }))
 

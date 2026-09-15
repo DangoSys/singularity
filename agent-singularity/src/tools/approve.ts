@@ -19,7 +19,7 @@ export function defineApproveTool(ctx: Context) {
     },
     output: { schema: { type: 'string' }, render: (_a, v) => text(v) },
     execute: async (args, exec) => {
-      return await ctx.hitl.approve(sessionId(exec), args.prompt)
+      return await ctx.hitl.approve(sessionId(exec), args.prompt, exec.signal)
     },
   })
 }

@@ -22,7 +22,7 @@ pnpm dsh plugin --profile web add /absolute/path/to/packages/singularity/bundle
 | `@dangosys/dsh-singularity-graph` | per-graph agent topology store |
 | `@dangosys/dsh-singularity-graphs` | graph registry + env binding |
 | `@dangosys/dsh-singularity-layout` | per-graph session geometry |
-| `@dangosys/dsh-singularity-agent-runtime` | root / spawn / group / relay |
+| `@dangosys/dsh-singularity-agent-runtime` | scoped root / spawn / stop / prompt |
 | `@dangosys/dsh-singularity-agent` | root tools: mark_ready / HITL |
 | `@dangosys/dsh-singularity-graph-web` | `/singularity/*` HTTP + SSE + map static |
 | `@dangosys/dsh-singularity-map` | xyflow map SPA + FocusPanel |

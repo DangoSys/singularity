@@ -13,21 +13,25 @@ import { cleanPromptText } from '@dangosys/dsh-env-builder'
 import type {} from '@dangosys/dsh-singularity-graph'
 import type {} from '@dangosys/dsh-singularity-layout'
 import type {} from '@dangosys/dsh-singularity-agent-runtime'
-import { DEFAULT_ROOT } from '@dangosys/dsh-singularity-layout'
 import type { CreateGraphRequest, GraphArchive, GraphRecord, GraphsEvent, GraphsSnapshot } from './types.ts'
 import { GraphsState } from './service/state.ts'
+import { setupPromptText } from './prompts/setup.prompts.ts'
 
 export * from './types.ts'
 export { GraphsState } from './service/state.ts'
 
-declare module '@deepseek-ai/dsh-session' {
-  interface SessionEventMap { 'graphs/event': GraphsEvent }
+declare module '@deepseek-ai/dsh-session/types' {
+  interface SessionEventMap {
+    'graphs/event': GraphsEvent
+  }
 }
 
 type StoredEvent = SessionEvent<'graphs/event'>
 
 declare module '@deepseek-ai/cordis' {
-  interface Context { graphs: GraphsService }
+  interface Context {
+    graphs: GraphsService
+  }
   interface Events {
     'graphs/change'(snapshot: GraphsSnapshot): void
     'graphs/selected'(graph: GraphRecord): void
@@ -48,15 +52,28 @@ export class GraphsService extends Service {
   private state = new GraphsState()
   private nextSeq = 0
   private writes = Promise.resolve()
+  private transitions = Promise.resolve()
 
   constructor(ctx: Context) {
     super(ctx, 'graphs')
     this.ready = this.open(ctx)
-    ctx.effect(() => () => this.ready.then(() => this.handle?.close()), 'graphs:persistence')
+    ctx.on('agentRuntime/spawned', async ({ parentId, sessionId }) => {
+      const graph = await this.graphForSession(parentId)
+      ctx.envBuilder.store.attachSession(graph.envId, sessionId)
+    })
+    ctx.effect(
+      () => async () => {
+        await this.ready
+        await this.transitions
+        await this.writes
+        await this.handle?.close()
+      },
+      'graphs:persistence',
+    )
     ctx.effect(async () => {
       await this.ready
       const selected = this.state.selected()
-      if (selected !== undefined) await this.activate(selected)
+      if (selected !== undefined) await this.transition(() => this.activate(selected))
       return () => {}
     }, 'graphs: boot selected')
   }
@@ -73,137 +90,182 @@ export class GraphsService extends Service {
     return selected
   }
 
+  async get(id: string): Promise<GraphRecord> {
+    await this.ready
+    return this.state.get(id)
+  }
+
+  async view(id: string) {
+    const meta = await this.get(id)
+    const graph = await this.ctx.graph.snapshotIn(meta.graphStoreId)
+    const layout = await this.ctx.layout.snapshotIn(meta.layoutStoreId)
+    return { meta, graph, layout }
+  }
+
   async list(): Promise<readonly GraphRecord[]> {
     await this.ready
     return this.state.snapshot().graphs
   }
 
   async select(id: string): Promise<GraphRecord> {
-    await this.commit([{ kind: 'graph/select', id }])
-    const graph = this.state.get(id)
-    await this.activate(graph)
-    return graph
+    return this.transition(async () => {
+      const graph = await this.get(id)
+      await this.activate(graph)
+      await this.commit([{ kind: 'graph/select', id }])
+      return graph
+    })
   }
 
   async create(request: CreateGraphRequest): Promise<GraphRecord> {
-    await this.ready
-    let createdEnvId: string | undefined
-    try {
-      const envId = await this.resolveEnv(request)
-      if (request.createEnv === true) createdEnvId = envId
-      const id = nextGraphId(this.state.snapshot().graphs.map(g => g.id))
-      const name = request.name?.trim() || id
-      if (name.length === 0) throw new Error('graphs: name is empty')
-      const rootSessionId = SessionId(randomUUID())
-      const graphStoreId = `sg-g-${id}`
-      const layoutStoreId = `sg-l-${id}`
+    return this.transition(async () => {
+      await this.ready
+      let createdEnvId: string | undefined
+      let attached: { envId: string; sessionId: SessionId } | undefined
+      let rootAgentId: SessionId | undefined
+      let committed = false
+      try {
+        if ((request.createEnv === true) === (request.envId !== undefined)) {
+          throw new Error('graphs: provide exactly one of createEnv, envId')
+        }
+        let envId: string
+        if (request.createEnv === true) {
+          if (request.repos === undefined || request.repos.length === 0) {
+            throw new Error('graphs: new environment requires at least one repository')
+          }
+          const env = this.ctx.envBuilder.store.create()
+          envId = createdEnvId = env.id
+          for (const ref of request.repos) this.ctx.envBuilder.store.planComponent(envId, ref)
+        } else {
+          if (request.repos !== undefined) throw new Error('graphs: repos only allowed with createEnv')
+          envId = request.envId!
+          if (this.state.boundEnvIds().has(envId)) throw new Error(`graphs: environment "${envId}" already bound`)
+          const env = this.ctx.envBuilder.store.get(envId)
+          if (env.components.length === 0) throw new Error(`graphs: environment "${envId}" has no repositories`)
+          if (env.sessionIds.length > 0) {
+            throw new Error(`graphs: environment "${envId}" still has sessions`)
+          }
+        }
+        const registry = this.state.snapshot()
+        const id = nextGraphId([
+          ...registry.graphs.map(graph => graph.id),
+          ...registry.archives.map(archive => archive.graph.id),
+        ])
+        const name = request.name === undefined ? id : request.name.trim()
+        if (name.length === 0) throw new Error('graphs: name is empty')
+        const rootSessionId = SessionId(randomUUID())
+        const graphStoreId = `sg-g-${rootSessionId}`
+        const layoutStoreId = `sg-l-${rootSessionId}`
 
-      await this.ctx.graph.switchStore(graphStoreId)
-      await this.ctx.layout.switchStore(layoutStoreId)
-      const handle = await this.ctx.agentRuntime.createRoot({ sessionId: rootSessionId })
-      await this.ctx.layout.set(handle.agent.id, DEFAULT_ROOT)
-      this.ctx.envBuilder.store.attachSession(envId, handle.agent.id)
-      this.ctx.envBuilder.store.select(envId)
+        const handle = await this.ctx.agentRuntime.createRoot({
+          sessionId: rootSessionId,
+          cwd: this.ctx.envBuilder.store.get(envId).path,
+          scope: { graphStoreId, layoutStoreId },
+        })
+        rootAgentId = handle.agent.id
+        this.ctx.envBuilder.store.attachSession(envId, handle.agent.id)
+        attached = { envId, sessionId: handle.agent.id }
+        this.ctx.envBuilder.store.select(envId)
 
-      const graph: GraphRecord = {
-        id,
-        name,
-        envId,
-        rootSessionId: handle.agent.id,
-        graphStoreId,
-        layoutStoreId,
-        createdAt: Date.now(),
-        ready: false,
+        const graph: GraphRecord = {
+          id,
+          name,
+          envId,
+          rootSessionId: handle.agent.id,
+          graphStoreId,
+          layoutStoreId,
+          createdAt: Date.now(),
+          ready: false,
+        }
+        await this.commit([{ kind: 'graph/add', graph }])
+        committed = true
+        await this.activate(graph)
+        const env = this.ctx.envBuilder.store.get(envId)
+        await this.ctx.agentRuntime.prompt(handle.agent, [
+          {
+            type: 'text',
+            text: setupPromptText(id, env),
+          },
+        ])
+        return graph
+      } catch (error) {
+        if (committed) throw error
+        if (attached !== undefined) {
+          await this.ctx.agentRuntime.stopAgents([attached.sessionId])
+          this.ctx.envBuilder.store.detachSession(attached.envId, attached.sessionId)
+        } else if (rootAgentId !== undefined) {
+          await this.ctx.agentRuntime.stopAgents([rootAgentId])
+        }
+        if (createdEnvId !== undefined) this.ctx.envBuilder.store.delete(createdEnvId)
+        throw error
       }
-      await this.commit([{ kind: 'graph/add', graph }])
-      this.ctx.emit('graphs/selected', graph)
-      return graph
-    } catch (error) {
-      if (createdEnvId !== undefined) this.ctx.envBuilder.store.delete(createdEnvId)
-      throw error
-    }
+    })
   }
 
-  async markReady(id?: string): Promise<GraphRecord> {
+  async markReady(id: string): Promise<GraphRecord> {
     await this.ready
-    const graph = id === undefined ? await this.current() : this.state.get(id)
-    await this.commit([{ kind: 'graph/ready', id: graph.id }])
-    return this.state.get(graph.id)
+    await this.commit([{ kind: 'graph/ready', id }])
+    return this.state.get(id)
+  }
+
+  async graphForSession(sessionId: SessionId): Promise<GraphRecord> {
+    await this.ready
+    for (const graph of this.state.snapshot().graphs) {
+      const snapshot = await this.ctx.graph.snapshotIn(graph.graphStoreId)
+      if (snapshot.agents.some(agent => agent.id === sessionId)) return graph
+    }
+    throw new Error(`graphs: session "${sessionId}" is not in a graph`)
   }
 
   async remove(id: string): Promise<void> {
-    await this.ready
-    const graph = this.state.get(id)
-    await this.ctx.graph.switchStore(graph.graphStoreId)
-    await this.ctx.layout.switchStore(graph.layoutStoreId)
-
-    const root = await this.ctx.agentRuntime.ensureRoot(graph.rootSessionId)
-    const cleanSessionId = SessionId(randomUUID())
-    const cleaned = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        stop()
-        reject(new Error(`graphs: env clean timed out for "${graph.envId}"`))
-      }, 10 * 60 * 1000)
-      const stop = this.ctx.on('envBuilder/cleaned', (envId: string) => {
-        if (envId !== graph.envId) return
+    return this.transition(async () => {
+      const graph = await this.get(id)
+      const scope = { graphStoreId: graph.graphStoreId, layoutStoreId: graph.layoutStoreId }
+      await this.ctx.agentRuntime.stopGraph(scope)
+      const root = await this.ctx.agentRuntime.ensureRoot(graph.rootSessionId, {
+        graphStoreId: graph.graphStoreId,
+        layoutStoreId: graph.layoutStoreId,
+      })
+      let stop!: () => void
+      let timer!: ReturnType<typeof setTimeout>
+      const cleaned = new Promise<void>((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`graphs: env clean timed out for "${graph.envId}"`)), 10 * 60 * 1000)
+        stop = this.ctx.on('envBuilder/cleaned', (envId: string) => {
+          if (envId === graph.envId) resolve()
+        })
+      })
+      try {
+        await Promise.all([
+          this.ctx.agentRuntime.spawn(root.agent, {
+            sessionId: SessionId(randomUUID()),
+            name: 'env-clean',
+            prompt: [{ type: 'text', text: cleanPromptText(graph.envId) }],
+          }),
+          cleaned,
+        ])
+      } finally {
         clearTimeout(timer)
         stop()
-        resolve()
-      })
-    })
-    await this.ctx.agentRuntime.spawn(root.agent, {
-      sessionId: cleanSessionId,
-      name: 'env-clean',
-      prompt: [{ type: 'text', text: cleanPromptText(graph.envId) }],
-    })
-    await cleaned
-
-    const snapshot = await this.ctx.graph.snapshot()
-    const agentIds = snapshot.agents.map(agent => agent.id)
-    await this.ctx.agentRuntime.stopAgents(agentIds)
-
-    const archive: GraphArchive = {
-      graph,
-      agentIds,
-      archivedAt: Date.now(),
-    }
-    await this.commit([{ kind: 'graph/remove', id, archive }])
-
-    const selected = this.state.selected()
-    if (selected !== undefined) await this.activate(selected)
-  }
-
-  private async resolveEnv(request: CreateGraphRequest): Promise<string> {
-    const modes = [request.createEnv === true, request.envId !== undefined]
-    if (modes.filter(Boolean).length !== 1) {
-      throw new Error('graphs: provide exactly one of createEnv, envId')
-    }
-    const bound = this.state.boundEnvIds()
-    if (request.createEnv === true) {
-      if (request.repos !== undefined && !Array.isArray(request.repos)) {
-        throw new Error('graphs: repos must be an array')
+        await this.ctx.agentRuntime.stopGraph(scope)
       }
-      const env = this.ctx.envBuilder.store.create()
-      for (const ref of request.repos ?? []) {
-        if (typeof ref !== 'string' || ref.trim().length === 0) throw new Error('graphs: empty repo ref')
-        this.ctx.envBuilder.store.planComponent(env.id, ref)
+      const snapshot = await this.ctx.graph.snapshotIn(graph.graphStoreId)
+      const archive: GraphArchive = { graph, agentIds: snapshot.agents.map(agent => agent.id), archivedAt: Date.now() }
+      await this.commit([{ kind: 'graph/remove', id, archive }])
+      const selected = this.state.selected()
+      if (selected !== undefined) await this.activate(selected)
+      else {
+        this.ctx.graph.clearActive()
+        this.ctx.layout.clearActive()
       }
-      return env.id
-    }
-    if (request.repos !== undefined) throw new Error('graphs: repos only allowed with createEnv')
-    const envId = request.envId!
-    if (bound.has(envId)) throw new Error(`graphs: environment "${envId}" already bound`)
-    const env = this.ctx.envBuilder.store.get(envId)
-    if (env.sessionIds.length > 0) {
-      throw new Error(`graphs: environment "${envId}" still has sessions; delete the bound graph first`)
-    }
-    return envId
+    })
   }
 
   private async activate(graph: GraphRecord): Promise<void> {
+    await this.ctx.agentRuntime.ensureRoot(graph.rootSessionId, {
+      graphStoreId: graph.graphStoreId,
+      layoutStoreId: graph.layoutStoreId,
+    })
     await this.ctx.graph.switchStore(graph.graphStoreId)
     await this.ctx.layout.switchStore(graph.layoutStoreId)
-    await this.ctx.agentRuntime.ensureRoot(graph.rootSessionId)
     this.ctx.envBuilder.store.select(graph.envId)
     this.ctx.emit('graphs/selected', graph)
     this.ctx.emit('graph/change', await this.ctx.graph.snapshot())
@@ -217,23 +279,40 @@ export class GraphsService extends Service {
       const next = this.state.clone()
       for (const event of events) next.apply(event)
       const records = events.map((event, index): StoredEvent => ({
-        type: 'graphs/event', seq: SessionSeq(this.nextSeq + index), time: Date.now(), data: event, ignorable: true,
+        type: 'graphs/event',
+        seq: SessionSeq(this.nextSeq + index),
+        time: Date.now(),
+        data: event,
+        ignorable: true,
       }))
       await this.handle!.append(records)
       this.state = next
       this.nextSeq += records.length
       this.ctx.emit('graphs/change', this.state.snapshot())
     })
-    this.writes = run
+    this.writes = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
+  }
+
+  private transition<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.transitions.then(work)
+    this.transitions = run.then(
+      () => undefined,
+      () => undefined,
+    )
     return run
   }
 
   private async open(ctx: Context): Promise<void> {
     const listed = (await ctx.sessionPersistence.list()).filter(item => item.header.id === this.storeId)
     if (listed.length > 1) throw new Error(`graphs: duplicate store session "${this.storeId}"`)
-    this.handle = listed.length === 0
-      ? await ctx.sessionPersistence.create(this.header())
-      : await ctx.sessionPersistence.open(this.storeId, 'write')
+    this.handle =
+      listed.length === 0
+        ? await ctx.sessionPersistence.create(this.header())
+        : await ctx.sessionPersistence.open(this.storeId, 'write')
     const { events } = await this.handle.read()
     for (const event of events) {
       if (event.type !== 'graphs/event' || event.ignorable !== true) {

@@ -36,7 +36,7 @@ function mockReq(method: string, url: string): IncomingMessage {
 }
 
 describe('graph-web routes and SSE', () => {
-  it('GET /singularity/graph returns snapshot from ctx.graph', async () => {
+  it('GET /singularity/graph returns the requested graph view', async () => {
     const snapshot = {
       version: 1 as const,
       id: 'graph-state',
@@ -51,7 +51,11 @@ describe('graph-web routes and SSE', () => {
       groups: [],
       edges: [],
     }
-    const layout = { version: 1 as const, id: 'layout-state', nodes: { root: { x: 0, y: 0, width: 1, height: 1, shape: 'card' as const } } }
+    const layout = {
+      version: 1 as const,
+      id: 'layout-state',
+      nodes: { root: { x: 0, y: 0, width: 1, height: 1, shape: 'card' as const } },
+    }
     const handlers = new Map<string, (req: IncomingMessage, res: ServerResponse) => Promise<void> | void>()
     const listeners = new Map<string, Set<(...args: never[]) => void>>()
     const effects: Array<() => void | (() => void) | Promise<void>> = []
@@ -60,16 +64,60 @@ describe('graph-web routes and SSE', () => {
       graph: { snapshot: async () => snapshot },
       layout: { snapshot: async () => layout },
       graphs: {
-        snapshot: async () => ({ version: 1 as const, graphs: [], archives: [] }),
+        view: async (id: string) => {
+          expect(id).toBe('graph-a')
+          return { meta: { id }, graph: snapshot, layout }
+        },
+        snapshot: async () => ({
+          version: 1 as const,
+          graphs: [
+            {
+              id: 'graph-a',
+              name: 'Graph A',
+              envId: 'project1',
+              rootSessionId: 'root' as SessionId,
+              graphStoreId: 'graph-state',
+              layoutStoreId: 'layout-state',
+              createdAt: 1,
+              ready: true,
+            },
+          ],
+          archives: [],
+        }),
         list: async () => [],
       },
-      envBuilder: { store: { list: () => [] } },
+      envBuilder: {
+        store: {
+          list: () => [],
+          get: (id: string) => {
+            expect(id).toBe('project1')
+            return {
+              id,
+              path: '/tmp/project1',
+              running: true,
+              sessionIds: ['root'],
+              components: [
+                { owner: 'DangoSys', repo: 'buckyball', url: '', dir: 'buckyball', status: 'ready' as const },
+              ],
+            }
+          },
+        },
+      },
       hitl: { list: () => [] },
       sessions: { get: () => undefined },
       webServer: {
-        register: ({ path, handler }: { path: string; handler: (req: IncomingMessage, res: ServerResponse) => void }) => {
-          handlers.set(path, handler)
-          return () => handlers.delete(path)
+        register: ({
+          kind,
+          path,
+          handler,
+        }: {
+          kind: 'exact' | 'prefix'
+          path: string
+          handler: (req: IncomingMessage, res: ServerResponse) => void
+        }) => {
+          const key = kind === 'exact' ? path : `${path}/*`
+          handlers.set(key, handler)
+          return () => handlers.delete(key)
         },
       },
       on(event: string, listener: (...args: never[]) => void) {
@@ -97,15 +145,26 @@ describe('graph-web routes and SSE', () => {
     expect(handlers.has('/singularity/notices')).toBe(false)
 
     const res = mockRes()
-    await handlers.get('/singularity/graph')!(mockReq('GET', '/singularity/graph'), res as unknown as ServerResponse)
+    await handlers.get('/singularity/graph')!(
+      mockReq('GET', '/singularity/graph?graphId=graph-a'),
+      res as unknown as ServerResponse,
+    )
     expect(res.statusCode).toBe(200)
-    expect(JSON.parse(res.body)).toEqual(snapshot)
+    expect(JSON.parse(res.body)).toEqual({ meta: { id: 'graph-a' }, graph: snapshot, layout })
+
+    const graphsRes = mockRes()
+    await handlers.get('/singularity/graphs')!(
+      mockReq('GET', '/singularity/graphs'),
+      graphsRes as unknown as ServerResponse,
+    )
+    expect(graphsRes.statusCode).toBe(200)
+    expect(JSON.parse(graphsRes.body).graphs[0].repos).toEqual(['DangoSys/buckyball'])
   })
 
   it('forwards named events onto SSE clients', () => {
-    const broadcast = new GraphBroadcast()
+    const broadcast = new GraphBroadcast({} as never)
     const res = mockRes()
-    broadcast.clients.add(res as unknown as ServerResponse)
+    broadcast.clients.set(res as unknown as ServerResponse, { graph: {} as never, writes: Promise.resolve() })
     broadcast.publishEvent('pr-chat/path', {
       path: 'pr',
       target: { repo: 'DangoSys/buckyball', number: 7 },

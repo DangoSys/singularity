@@ -26,10 +26,11 @@ declare module '@deepseek-ai/cordis' {
 }
 declare class HitlService extends Service {
   private readonly waiters;
+  private readonly lifetime;
   constructor(ctx: Context);
   list(): readonly HitlPending[];
-  ask(sessionId: string, prompt: string): Promise<string>;
-  approve(sessionId: string, prompt: string): Promise<'approve' | 'reject'>;
+  ask(sessionId: string, prompt: string, signal: AbortSignal): Promise<string>;
+  approve(sessionId: string, prompt: string, signal: AbortSignal): Promise<'approve' | 'reject'>;
   answer(id: string, answer: HitlAnswer): void;
   private enqueue;
 }

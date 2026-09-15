@@ -16,8 +16,11 @@ export function registerLayout(ctx: Context): () => void {
     path: LAYOUT_PATH,
     handler: async (req: IncomingMessage, res: ServerResponse) => {
       try {
+        const id = new URL(req.url!, 'http://dsh.local').searchParams.get('graphId')
+        if (id === null) throw new Error('layout: graphId required')
+        const graph = await ctx.graphs.get(id)
         if (req.method === 'GET') {
-          send(res, 200, 'application/json; charset=utf-8', await ctx.layout.snapshot())
+          send(res, 200, 'application/json; charset=utf-8', await ctx.layout.snapshotIn(graph.layoutStoreId))
           return
         }
         if (req.method !== 'PUT') {
@@ -31,8 +34,10 @@ export function registerLayout(ctx: Context): () => void {
         if (body.node === undefined || typeof body.node !== 'object') {
           throw new Error('layout put: node required')
         }
-        await ctx.layout.set(body.sessionId, body.node)
-        send(res, 200, 'application/json; charset=utf-8', await ctx.layout.snapshot())
+        const topology = await ctx.graph.snapshotIn(graph.graphStoreId)
+        if (!topology.agents.some(agent => agent.id === body.sessionId)) throw new Error('layout: session belongs to another graph')
+        await ctx.layout.setIn(graph.layoutStoreId, body.sessionId, body.node)
+        send(res, 200, 'application/json; charset=utf-8', await ctx.layout.snapshotIn(graph.layoutStoreId))
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         send(res, message.includes('no graph selected') ? 409 : 400, 'text/plain; charset=utf-8', message)

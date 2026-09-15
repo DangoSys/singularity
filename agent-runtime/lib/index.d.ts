@@ -10,14 +10,26 @@ declare module '@deepseek-ai/cordis' {
     agentRuntime: AgentRuntime;
     sessionVisibility: SessionVisibility;
   }
+  interface Events {
+    'agentRuntime/spawned'(event: {
+      parentId: SessionId$1;
+      sessionId: SessionId$1;
+    }): void;
+  }
 }
 interface SessionVisibility {
   readonly isVisible: (sessionId: SessionId$1) => boolean;
 }
 interface RootRequest {
   readonly sessionId: SessionId$1;
+  readonly cwd: string;
+  readonly scope: GraphScope;
   readonly agentOptions?: AgentOptions;
   readonly agentPreset?: string;
+}
+interface GraphScope {
+  readonly graphStoreId: string;
+  readonly layoutStoreId: string;
 }
 interface SpawnRequest {
   readonly sessionId: SessionId$1;
@@ -33,13 +45,22 @@ declare class AgentRuntime extends Service {
   private readonly owned;
   private readonly roots;
   private readonly handles;
+  private readonly scopes;
+  private readonly operations;
+  private readonly stopping;
+  private closing;
+  private readonly resuming;
   constructor(ctx: Context);
-  ensureRoot(sessionId: SessionId): Promise<AgentHandle>;
+  ensureRoot(sessionId: SessionId, scope: GraphScope): Promise<AgentHandle>;
+  private resumeRoot;
   createRoot(request: RootRequest): Promise<AgentHandle>;
   spawn(parent: Agent, request: SpawnRequest): Promise<AgentHandle>;
+  stopGraph(scope: GraphScope): Promise<void>;
   stopAgents(sessionIds: readonly SessionId[]): Promise<void>;
   prompt(agent: Agent, prompt: readonly ContentBlock[]): Promise<void>;
+  private inGraph;
   private live;
+  private scope;
 }
 //#endregion
-export { type AgentOptions, AgentRuntime, AgentRuntime as default, type CanvasNode, type ContentBlock, type RootRequest, type SessionVisibility, type SpawnRequest };
+export { type AgentOptions, AgentRuntime, AgentRuntime as default, type CanvasNode, type ContentBlock, type GraphScope, type RootRequest, type SessionVisibility, type SpawnRequest };

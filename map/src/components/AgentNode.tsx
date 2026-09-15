@@ -16,7 +16,13 @@ const GLYPH: Record<AgentData['status'], string> = {
 function AgentNodeView({ data, selected }: NodeProps<AgentFlowNode>) {
   const tier = useZoomTier()
   const role = data.routerFor ? 'router' : data.root ? 'root' : 'agent'
-  const typeClass = data.root ? 'root-node' : data.status === 'failed' ? 'failed-node' : data.status === 'waiting' ? 'waiting-node' : ''
+  const typeClass = data.root
+    ? 'root-node'
+    : data.status === 'failed'
+      ? 'failed-node'
+      : data.status === 'waiting'
+        ? 'waiting-node'
+        : ''
 
   if (tier === 'glyph') {
     return (
@@ -28,7 +34,9 @@ function AgentNodeView({ data, selected }: NodeProps<AgentFlowNode>) {
         title={`${data.name}\n${data.status}`}
       >
         <Handle type="target" id="in" position={Position.Left} className="sg-handle sg-handle-lg" />
-        <span className="sg-glyph-seal" data-status={data.status}>{GLYPH[data.status]}</span>
+        <span className="sg-glyph-seal" data-status={data.status}>
+          {GLYPH[data.status]}
+        </span>
         <Handle type="source" id="out" position={Position.Right} className="sg-handle sg-handle-lg" />
       </div>
     )

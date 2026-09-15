@@ -4,19 +4,30 @@ import { routeEdge } from '../lib/edge-path'
 import { pathIds, useStore, type FlowEdge } from '../store'
 
 export default function AgentEdgeView({
-  id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
-  selected, interactionWidth, data,
+  id,
+  source,
+  target,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  selected,
+  interactionWidth,
+  data,
 }: EdgeProps<FlowEdge>) {
-  const nodes = useStore((s) => s.nodes)
-  const edges = useStore((s) => s.edges)
-  const selectedId = useStore((s) => s.selectedId)
+  const nodes = useStore(s => s.nodes)
+  const edges = useStore(s => s.edges)
+  const selectedId = useStore(s => s.selectedId)
 
   const routed = useMemo(
     () => routeEdge(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, source, target, nodes),
     [sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, source, target, nodes],
   )
 
-  const kind = data?.kind
+  if (data === undefined) throw new Error(`edge ${id}: data required`)
+  const { kind, brief } = data
   if (kind !== 'spawn' && kind !== 'handoff') throw new Error(`edge ${id}: kind required`)
 
   const pathSet = pathIds(selectedId, edges)
@@ -35,13 +46,13 @@ export default function AgentEdgeView({
         interactionWidth={interactionWidth}
       />
       {highlighted && <path d={routed.path} className="sg-flow-ov" fill="none" />}
-      {data.brief !== undefined && data.brief.length > 0 && (
+      {brief !== undefined && brief.length > 0 && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan sg-edge-label"
             style={{ transform: `translate(-50%, -50%) translate(${routed.labelX}px, ${routed.labelY}px)` }}
           >
-            {data.brief}
+            {brief}
           </div>
         </EdgeLabelRenderer>
       )}

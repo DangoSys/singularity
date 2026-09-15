@@ -12,15 +12,7 @@ export class GraphsState {
       this.value = { version: 1, graphs: [], archives: [] }
       return
     }
-    const next = copy(snapshot)
-    this.value = {
-      ...next,
-      archives: next.archives ?? [],
-      graphs: next.graphs.map(g => {
-        const ready = (g as GraphRecord & { ready?: boolean }).ready
-        return ready === undefined ? { ...g, ready: false } : g
-      }),
-    }
+    this.value = copy(snapshot)
   }
 
   clone(): GraphsState {
@@ -34,9 +26,8 @@ export class GraphsState {
   apply(event: GraphsEvent): void {
     switch (event.kind) {
       case 'graph/add': {
-        const graph = (event.graph as GraphRecord & { ready?: boolean }).ready === undefined
-          ? { ...event.graph, ready: false }
-          : event.graph
+        const graph = event.graph
+        if (typeof graph.ready !== 'boolean') throw new Error('graphs: ready must be boolean')
         if (this.value.graphs.some(g => g.id === graph.id)) {
           throw new Error(`graphs: duplicate graph id "${graph.id}"`)
         }

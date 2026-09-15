@@ -1,0 +1,22 @@
+{
+  "extends": "../../map/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@deepseek-ai/cordis": ["../../../../thirdparty/deepseek-harness/vendor/cordis/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-typert-protocol": [
+        "../../../../thirdparty/deepseek-harness/packages/typert/protocol/lib/types/index.d.ts"
+      ],
+      "@deepseek-ai/dsh-api-remotes/client": [
+        "../../../../thirdparty/deepseek-harness/packages/api/remotes/lib/types/client/index.d.ts"
+      ],
+      "@deepseek-ai/dsh-api-workspace-controller/client": [
+        "../../../../thirdparty/deepseek-harness/packages/api/workspace-controller/lib/types/client/index.d.ts"
+      ],
+      "@deepseek-ai/dsh-api-workspace-controller/types": [
+        "../../../../thirdparty/deepseek-harness/packages/api/workspace-controller/lib/types/types.d.ts"
+      ]
+    }
+  },
+  "include": ["client.ts", "vite-env.d.ts"]
+}

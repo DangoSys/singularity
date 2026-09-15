@@ -1,43 +1,28 @@
 import type { GraphSnapshot, LayoutSnapshot, CanvasNode } from './types'
-import type { ChatRow, GraphMeta, HitlPending } from './store'
+import type { GraphMeta, HitlPending } from './store'
 
-const GRAPH = '/singularity/graph'
-const LAYOUT = '/singularity/layout'
-const EVENTS = '/singularity/events'
-const GRAPHS = '/singularity/graphs'
+export const GRAPH_ID = new URLSearchParams(window.location.search).get('graphId')
+const query = '?graphId=' + encodeURIComponent(GRAPH_ID ?? '')
+const GRAPH = '/singularity/graph' + query
+const LAYOUT = '/singularity/layout' + query
+const EVENTS = '/singularity/events' + query
 const HITL = '/singularity/hitl'
 
 function check(res: Response, body: string): void {
   if (!res.ok) throw new Error(`${res.url}: ${res.status} ${body}`)
 }
 
-export async function fetchGraph(): Promise<GraphSnapshot> {
+export interface ViewSnapshot {
+  meta: GraphMeta
+  graph: GraphSnapshot
+  layout: LayoutSnapshot
+}
+
+export async function fetchGraph(): Promise<ViewSnapshot> {
   const res = await fetch(GRAPH)
   const text = await res.text()
-  if (res.status === 409) throw new Error(text)
   check(res, text)
-  const value = JSON.parse(text) as GraphSnapshot
-  if (value.version !== 1) throw new Error('graph: unexpected version')
-  return value
-}
-
-export async function fetchLayout(): Promise<LayoutSnapshot> {
-  const res = await fetch(LAYOUT)
-  const text = await res.text()
-  if (res.status === 409) throw new Error(text)
-  check(res, text)
-  const value = JSON.parse(text) as LayoutSnapshot
-  if (value.version !== 1) throw new Error('layout: unexpected version')
-  return value
-}
-
-export async function fetchGraphs(): Promise<{ graphs: GraphMeta[]; selectedId?: string }> {
-  const res = await fetch(GRAPHS)
-  const text = await res.text()
-  check(res, text)
-  const value = JSON.parse(text) as { version: 1; graphs: GraphMeta[]; selectedId?: string }
-  if (value.version !== 1) throw new Error('graphs: unexpected version')
-  return value
+  return JSON.parse(text) as ViewSnapshot
 }
 
 export async function fetchHitl(): Promise<{ pending: HitlPending[] }> {
@@ -73,23 +58,15 @@ export async function putLayout(sessionId: string, node: CanvasNode): Promise<La
 }
 
 export function openEvents(handlers: {
-  onGraph: (g: GraphSnapshot) => void
-  onLayout: (l: LayoutSnapshot) => void
-  onGraphs: (snap: { graphs: GraphMeta[]; selectedId?: string }) => void
+  onSnapshot: (view: ViewSnapshot) => void
   onHitl: (pending: HitlPending[]) => void
   onError: () => void
 }): EventSource {
   const source = new EventSource(EVENTS)
-  source.addEventListener('graph', (event) => {
-    handlers.onGraph(JSON.parse((event as MessageEvent).data) as GraphSnapshot)
+  source.addEventListener('snapshot', event => {
+    handlers.onSnapshot(JSON.parse((event as MessageEvent).data) as ViewSnapshot)
   })
-  source.addEventListener('layout', (event) => {
-    handlers.onLayout(JSON.parse((event as MessageEvent).data) as LayoutSnapshot)
-  })
-  source.addEventListener('graphs', (event) => {
-    handlers.onGraphs(JSON.parse((event as MessageEvent).data) as { graphs: GraphMeta[]; selectedId?: string })
-  })
-  source.addEventListener('hitl', (event) => {
+  source.addEventListener('hitl', event => {
     const data = JSON.parse((event as MessageEvent).data) as { pending: HitlPending[] }
     handlers.onHitl(data.pending)
   })

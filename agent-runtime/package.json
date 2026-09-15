@@ -32,7 +32,9 @@
     "@deepseek-ai/dsh-agent-presets": "*",
     "@deepseek-ai/dsh-llm": "*",
     "@deepseek-ai/dsh-session": "*",
-    "@deepseek-ai/dsh-session-persistence": "*"
+    "@deepseek-ai/dsh-session-persistence": "*",
+    "@deepseek-ai/dsh-system-prompt": "*",
+    "@deepseek-ai/dsh-tools": "*"
   },
   "dependencies": {
     "@dangosys/dsh-singularity-graph": "workspace:*",
@@ -49,7 +51,9 @@
     "@deepseek-ai/dsh-agent-presets": "link:../../../thirdparty/deepseek-harness/packages/preset/agent-presets",
     "@deepseek-ai/dsh-llm": "link:../../../thirdparty/deepseek-harness/packages/llm/llm",
     "@deepseek-ai/dsh-session": "link:../../../thirdparty/deepseek-harness/packages/core/session",
-    "@deepseek-ai/dsh-session-persistence": "link:../../../thirdparty/deepseek-harness/packages/session/session-persistence"
+    "@deepseek-ai/dsh-session-persistence": "link:../../../thirdparty/deepseek-harness/packages/session/session-persistence",
+    "@deepseek-ai/dsh-system-prompt": "link:../../../thirdparty/deepseek-harness/packages/core/system-prompt",
+    "@deepseek-ai/dsh-tools": "link:../../../thirdparty/deepseek-harness/packages/core/tools"
   },
   "publishConfig": {
     "access": "public"

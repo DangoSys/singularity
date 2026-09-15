@@ -16,7 +16,16 @@ export function registerGraphs(ctx: Context): () => void {
     handler: async (req: IncomingMessage, res: ServerResponse) => {
       try {
         if (req.method === 'GET') {
-          send(res, 200, 'application/json; charset=utf-8', await ctx.graphs.snapshot())
+          const snapshot = await ctx.graphs.snapshot()
+          send(res, 200, 'application/json; charset=utf-8', {
+            ...snapshot,
+            graphs: snapshot.graphs.map(graph => ({
+              ...graph,
+              repos: ctx.envBuilder.store
+                .get(graph.envId)
+                .components.map(component => `${component.owner}/${component.repo}`),
+            })),
+          })
           return
         }
         if (req.method === 'POST') {
@@ -38,7 +47,10 @@ export function registerGraphs(ctx: Context): () => void {
     handler: async (req: IncomingMessage, res: ServerResponse) => {
       try {
         const url = new URL(req.url ?? '/', 'http://dsh.local')
-        const parts = url.pathname.slice(GRAPHS_PATH.length + 1).split('/').filter(Boolean)
+        const parts = url.pathname
+          .slice(GRAPHS_PATH.length + 1)
+          .split('/')
+          .filter(Boolean)
         if (parts.length !== 2) throw new Error(`graphs: unknown path ${url.pathname}`)
         const [id, action] = parts
         if (id.length === 0) throw new Error('graphs: missing graph id')

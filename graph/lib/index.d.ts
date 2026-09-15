@@ -75,7 +75,7 @@ declare class GraphState {
 }
 //#endregion
 //#region src/index.d.ts
-declare module '@deepseek-ai/dsh-session' {
+declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
     'graph/event': GraphEvent;
   }
@@ -90,23 +90,32 @@ declare module '@deepseek-ai/cordis' {
 }
 declare class GraphService extends Service {
   static inject: string[];
-  private ready;
-  private storeId;
-  private handle;
-  private state;
-  private nextSeq;
-  private writes;
-  private active;
+  private readonly stores;
+  private activeId?;
+  private closing;
   constructor(ctx: Context, config?: GraphConfig);
-  switchStore(rawId: string): Promise<GraphSnapshot>;
+  switchStore(id: string): Promise<GraphSnapshot>;
+  clearActive(): void;
   snapshot(): Promise<GraphSnapshot>;
+  snapshotIn(id: string): Promise<GraphSnapshot>;
   addAgent(agent: AgentNode, root?: boolean): Promise<void>;
+  addAgentIn(storeId: string, agent: AgentNode, root?: boolean): Promise<void>;
   setStatus(agentId: SessionId, status: AgentStatus): Promise<void>;
+  setStatusIn(storeId: string, agentId: SessionId, status: AgentStatus): Promise<void>;
   addGroup(group: GroupNode): Promise<void>;
+  addGroupIn(storeId: string, group: GroupNode): Promise<void>;
   addMember(groupId: string, agentId: SessionId): Promise<void>;
+  addMemberIn(storeId: string, groupId: string, agentId: SessionId): Promise<void>;
   addEdge(edge: GraphEdge): Promise<void>;
+  addEdgeIn(storeId: string, edge: GraphEdge): Promise<void>;
   commit(events: readonly GraphEvent[]): Promise<void>;
+  commitIn(storeId: string, events: readonly GraphEvent[]): Promise<void>;
+  private active;
+  private activeStoreId;
+  private store;
+  private load;
   private open;
+  private close;
   private header;
 }
 //#endregion

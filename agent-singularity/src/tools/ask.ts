@@ -13,13 +13,14 @@ function sessionId(exec: ToolRunContext): string {
 export function defineAskTool(ctx: Context) {
   return defineTool({
     name: 'hitl_ask',
-    description: 'Ask the human a text question and wait for the answer. Use for environment setup or decisions that need human input.',
+    description:
+      'Ask the human a text question and wait for the answer. Use for environment setup or decisions that need human input.',
     parameters: {
       prompt: { type: 'string', required: true, description: 'Question shown to the human' },
     },
     output: { schema: { type: 'string' }, render: (_a, v) => text(v) },
     execute: async (args, exec) => {
-      return await ctx.hitl.ask(sessionId(exec), args.prompt)
+      return await ctx.hitl.ask(sessionId(exec), args.prompt, exec.signal)
     },
   })
 }

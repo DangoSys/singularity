@@ -18,7 +18,7 @@ export function registerGraphEnvs(ctx: Context): () => void {
         path: env.path,
         componentCount: env.components.length,
         sessionCount: env.sessionIds.length,
-        available: !bound.has(env.id) && env.sessionIds.length === 0,
+        available: env.components.length > 0 && !bound.has(env.id) && env.sessionIds.length === 0,
         bound: bound.has(env.id),
       }))
       send(res, 200, 'application/json; charset=utf-8', { envs })

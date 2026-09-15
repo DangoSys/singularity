@@ -1,11 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
+import type { HitlAnswer } from '@dangosys/dsh-singularity-agent'
 import { HITL_PATH } from '../../constants.ts'
 import { readJson, send } from '../libs/http.ts'
-
-type HitlAnswer =
-  | { readonly kind: 'ask'; readonly text: string }
-  | { readonly kind: 'approve'; readonly decision: 'approve' | 'reject' }
 
 export function registerHitl(ctx: Context): () => void {
   return ctx.webServer.register({

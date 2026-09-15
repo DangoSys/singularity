@@ -1,4 +1,4 @@
-import type { Position } from '@xyflow/react'
+import { Position } from '@xyflow/react'
 import type { FlowNode } from '../store'
 
 interface Pt { x: number; y: number }
@@ -9,9 +9,9 @@ const MARGIN = 10
 
 function controlFor(pos: Position | undefined, x: number, y: number, ox: number, oy: number): Pt {
   switch (pos) {
-    case 'left': return { x: x - ox, y }
-    case 'right': return { x: x + ox, y }
-    case 'top': return { x, y: y - oy }
+    case Position.Left: return { x: x - ox, y }
+    case Position.Right: return { x: x + ox, y }
+    case Position.Top: return { x, y: y - oy }
     default: return { x, y: y + oy }
   }
 }
@@ -46,8 +46,8 @@ export function routeEdge(
     if (tCx < sCx) {
       sourceX = 2 * sCx - sourceX
       targetX = 2 * tCx - targetX
-      sourcePosition = 'left'
-      targetPosition = 'right'
+      sourcePosition = Position.Left
+      targetPosition = Position.Right
     }
   }
   const p0: Pt = { x: sourceX, y: sourceY }

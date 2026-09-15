@@ -4,7 +4,7 @@ import { useZoomTier } from '../lib/use-map-mode'
 
 export function ZoomTierTag() {
   const tier = useZoomTier()
-  const zoom = useRfStore((s) => s.transform[2])
+  const zoom = useRfStore(s => s.transform[2])
   useEffect(() => {
     const el = document.querySelector('.react-flow')
     if (el === null) throw new Error('ZoomTierTag: react-flow missing')

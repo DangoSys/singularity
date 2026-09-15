@@ -22,9 +22,14 @@ window.__ModuleLoader__.load({
 .sg-graphs-head button{height:24px;border:0;border-radius:6px;padding:0 8px;background:#111827;color:#fff;font:600 11px Inter,system-ui,sans-serif;cursor:pointer}
 .sg-graphs-list{max-height:220px;overflow:auto}
 .sg-graph-row{display:flex;align-items:stretch;border-bottom:1px solid #f0eeea}
-.sg-graph-row button.select{flex:1;border:0;background:transparent;text-align:left;padding:8px 10px;cursor:pointer;color:#1a1a1a}
+.sg-graph-row button.select{flex:1;min-width:0;border:0;background:transparent;text-align:left;padding:8px 10px;cursor:pointer;color:#1a1a1a}
 .sg-graph-row button.select:hover{background:#f5f3f0}
 .sg-graph-row.active button.select{background:#efeaff;color:#5a4bd6;font-weight:700}
+.sg-graph-name{display:block;font-weight:700}
+.sg-graph-repos{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.sg-graph-repo{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;border-radius:999px;background:#f5f3f0;padding:2px 6px;color:#6b6560;font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.sg-graph-row.active .sg-graph-repo{background:rgba(255,255,255,.72);color:#5a4bd6}
+.sg-graph-repos.empty{color:#968c77;font-size:10px}
 .sg-graph-row button.del{flex:none;width:34px;border:0;border-left:1px solid #f0eeea;background:transparent;color:#968c77;cursor:pointer}
 .sg-graph-row button.del:hover{background:#fef2f2;color:#dc2626}
 .sg-graphs-empty{padding:12px 10px;color:#968c77}
@@ -57,8 +62,58 @@ window.__ModuleLoader__.load({
 .sg-create-actions .ok{background:#111827;color:#fff}
 .sg-create-actions .ok:disabled{opacity:.45;cursor:not-allowed}
 `
+    const blocksText = content =>
+      content
+        .filter(block => block.type === 'text')
+        .map(block => block.text)
+        .join('\n')
+
+    module.exports.transcriptRows = (entries, session) => {
+      const rows = []
+      const admitted = new Set()
+      const durableMessages = new Set()
+      const liveRows = new Map()
+      for (const entry of entries) {
+        if (entry.type === 'transient') {
+          const event = entry.event
+          if (event.type !== 'assistant/live-chunk' || event.data.chunk.type !== 'text-delta') continue
+          const index = liveRows.get(event.data.attemptId)
+          if (index === undefined) {
+            liveRows.set(event.data.attemptId, rows.length)
+            rows.push({ role: 'assistant', text: event.data.chunk.text })
+          } else {
+            rows[index].text += event.data.chunk.text
+          }
+          continue
+        }
+        const event = entry.event
+        if (event.type === 'user/message' && event.data.source.kind === 'user') {
+          durableMessages.add(event.data.id)
+          if (event.data.source.rpcId !== undefined) admitted.add(event.data.source.rpcId)
+          const text = blocksText(event.data.content)
+          if (text) rows.push({ role: 'user', text })
+        } else if (event.type === 'assistant/message') {
+          const text = blocksText(event.data.message.content)
+          if (text) rows.push({ role: 'assistant', text })
+        }
+      }
+      for (const item of session.queue) {
+        if (item.placement === 'context' || durableMessages.has(item.messageId)) continue
+        if (item.rpcId !== undefined) {
+          if (admitted.has(item.rpcId)) continue
+          admitted.add(item.rpcId)
+        }
+        const text = blocksText(item.content)
+        if (text) rows.push({ role: 'user', text })
+      }
+      for (const pending of session.pendingSubmissions) {
+        if (!admitted.has(pending.requestId) && pending.text) rows.push({ role: 'user', text: pending.text })
+      }
+      return rows
+    }
+
     module.exports.inject = ['sessions']
-    module.exports.apply = (ctx) => {
+    module.exports.apply = ctx => {
       const style = document.createElement('style')
       style.textContent = STYLE
       document.head.append(style)
@@ -101,7 +156,7 @@ window.__ModuleLoader__.load({
       const dialogBtn = host.querySelector('[data-view="dialog"]')
       const mapBtn = host.querySelector('[data-view="map"]')
       const shell = host.querySelector('.sg-shell')
-      const frame = host.querySelector('.sg-frame')
+      let frame = host.querySelector('.sg-frame')
       const listEl = host.querySelector('.sg-graphs-list')
       const listErr = host.querySelector('[data-field="list-err"]')
       const createEl = host.querySelector('.sg-create')
@@ -118,11 +173,36 @@ window.__ModuleLoader__.load({
       const createBtn = host.querySelector('[data-action="create"]')
       const cancelBtn = host.querySelector('[data-action="cancel"]')
       const newBtn = host.querySelector('[data-action="new"]')
-      if (!dialogBtn || !mapBtn || !shell || !frame || !listEl || !listErr || !createEl || !envSelect || !nameInput || !envNewBtn || !envNewPanel || !tagsEl || !repoInput || !repoErr || !createErr || !createStatus || !repoAddBtn || !createBtn || !cancelBtn || !newBtn) {
+      if (
+        !dialogBtn ||
+        !mapBtn ||
+        !shell ||
+        !frame ||
+        !listEl ||
+        !listErr ||
+        !createEl ||
+        !envSelect ||
+        !nameInput ||
+        !envNewBtn ||
+        !envNewPanel ||
+        !tagsEl ||
+        !repoInput ||
+        !repoErr ||
+        !createErr ||
+        !createStatus ||
+        !repoAddBtn ||
+        !createBtn ||
+        !cancelBtn ||
+        !newBtn
+      ) {
         throw new Error('singularity shell: mount failed')
       }
 
       let graphsSnap = null
+      let currentGraphId = null
+      let chatGeneration = 0
+      let graphGeneration = 0
+      let selectionGeneration = 0
       let chat = { sessionId: null, dispose: null }
       let createMode = 'existing'
       let plannedRepos = []
@@ -130,7 +210,7 @@ window.__ModuleLoader__.load({
       let creating = false
       let deletingId = null
 
-      const setView = (view) => {
+      const setView = view => {
         const map = view === 'map'
         dialogBtn.classList.toggle('active', !map)
         mapBtn.classList.toggle('active', map)
@@ -138,64 +218,57 @@ window.__ModuleLoader__.load({
         mapBtn.setAttribute('aria-pressed', String(map))
         shell.classList.toggle('open', map)
         if (map) {
-          if (!frame.getAttribute('src')) frame.setAttribute('src', MAP)
-          void refreshGraphs().catch((e) => { listErr.textContent = String(e?.message ?? e) })
+          void refreshGraphs().catch(e => {
+            listErr.textContent = String(e?.message ?? e)
+          })
         }
-      }
-
-      const blocksText = (content) => {
-        if (!Array.isArray(content)) return ''
-        return content.map((block) => (block && block.type === 'text' ? block.text : '')).filter(Boolean).join('\n')
       }
 
       const postTranscript = (sessionId, rows) => {
-        frame.contentWindow?.postMessage({ type: 'singularity:transcript', sessionId, rows }, '*')
+        frame.contentWindow?.postMessage(
+          { type: 'singularity:transcript', graphId: currentGraphId, sessionId, rows },
+          location.origin,
+        )
       }
 
-      const pingMap = () => {
-        const win = frame.contentWindow
-        if (win === null) return
-        win.postMessage({ type: 'singularity:reload' }, '*')
-        const selected = graphsSnap?.graphs?.find((g) => g.id === graphsSnap.selectedId)
-        if (selected !== undefined) {
-          win.postMessage({ type: 'singularity:select', sessionId: selected.rootSessionId }, '*')
-        }
-      }
-
-      const bindChat = async (sessionId) => {
+      const bindChat = async sessionId => {
+        const generation = ++chatGeneration
         if (chat.dispose) chat.dispose()
         chat = { sessionId, dispose: null }
         await ctx.sessions.refresh()
+        if (generation !== chatGeneration) return
         ctx.sessions.open(sessionId)
         const binding = ctx.sessions.binding(sessionId)
         if (binding === undefined) throw new Error('singularity: session binding missing for ' + sessionId)
         const paint = () => {
-          const rows = []
-          for (const entry of binding.eventSource.getSnapshot().entries) {
-            if (entry.type !== 'event') continue
-            const event = entry.event
-            if (event.type === 'user/message' && event.data?.source?.kind === 'user') {
-              const value = blocksText(event.data.content)
-              if (value) rows.push({ role: 'user', text: value })
-            } else if (event.type === 'assistant/message') {
-              const value = blocksText(event.data.message?.content)
-              if (value) rows.push({ role: 'assistant', text: value })
-            }
+          if (generation !== chatGeneration) return
+          const snapshot = binding.session.getSnapshot()
+          if (snapshot.openState === 'error') {
+            frame.contentWindow?.postMessage(
+              {
+                type: 'singularity:session-error',
+                graphId: currentGraphId,
+                sessionId,
+                message: snapshot.openError.message,
+              },
+              location.origin,
+            )
+            return
           }
-          for (const pending of binding.session.getSnapshot().pendingSubmissions) {
-            if (pending.placement !== 'transcript' || !pending.text) continue
-            rows.push({ role: 'user', text: pending.text })
-          }
+          const rows = module.exports.transcriptRows(binding.eventSource.getSnapshot().entries, snapshot)
           postTranscript(sessionId, rows)
         }
         paint()
         const stopEvents = binding.eventSource.subscribe(paint)
         const stopSession = binding.session.subscribe(paint)
-        chat.dispose = () => { stopEvents(); stopSession() }
-        frame.contentWindow?.postMessage({ type: 'singularity:select', sessionId }, '*')
+        chat.dispose = () => {
+          stopEvents()
+          stopSession()
+        }
       }
 
       const clearChat = () => {
+        chatGeneration += 1
         if (chat.dispose) chat.dispose()
         chat = { sessionId: null, dispose: null }
       }
@@ -217,9 +290,27 @@ window.__ModuleLoader__.load({
           const select = document.createElement('button')
           select.type = 'button'
           select.className = 'select'
-          select.textContent = graph.name + (graph.ready ? '' : ' · setup')
+          const name = document.createElement('span')
+          name.className = 'sg-graph-name'
+          name.textContent = graph.name + (graph.ready ? '' : ' · setup')
+          const repos = document.createElement('span')
+          repos.className = 'sg-graph-repos'
+          if (graph.repos.length === 0) {
+            repos.classList.add('empty')
+            repos.textContent = 'No repositories'
+          } else {
+            for (const ref of graph.repos) {
+              const repo = document.createElement('span')
+              repo.className = 'sg-graph-repo'
+              repo.textContent = ref
+              repos.append(repo)
+            }
+          }
+          select.append(name, repos)
           select.addEventListener('click', () => {
-            void selectGraph(graph.id).catch((e) => { listErr.textContent = String(e?.message ?? e) })
+            void selectGraph(graph.id).catch(e => {
+              listErr.textContent = String(e?.message ?? e)
+            })
           })
           const del = document.createElement('button')
           del.type = 'button'
@@ -227,10 +318,12 @@ window.__ModuleLoader__.load({
           del.title = 'Delete graph'
           del.textContent = graph.id === deletingId ? '…' : '⌫'
           del.disabled = deletingId !== null
-          del.addEventListener('click', (event) => {
+          del.addEventListener('click', event => {
             event.preventDefault()
             event.stopPropagation()
-            void deleteGraph(graph.id).catch((e) => { listErr.textContent = String(e?.message ?? e) })
+            void deleteGraph(graph.id).catch(e => {
+              listErr.textContent = String(e?.message ?? e)
+            })
           })
           select.disabled = deletingId !== null
           row.append(select, del)
@@ -238,39 +331,41 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const syncSelectedChat = async () => {
-        const selected = graphsSnap?.graphs?.find((g) => g.id === graphsSnap.selectedId)
-        if (selected === undefined) {
-          clearChat()
-          return
-        }
-        await bindChat(selected.rootSessionId)
-      }
-
-      const refreshGraphs = async () => {
+      const refreshGraphs = async (preferred = currentGraphId) => {
+        const generation = ++graphGeneration
         listErr.textContent = ''
         const res = await fetch(GRAPHS)
         const text = await res.text()
-        if (!res.ok) throw new Error(text || ('HTTP ' + res.status))
+        if (!res.ok) throw new Error(text)
+        if (generation !== graphGeneration) return
         graphsSnap = JSON.parse(text)
+        currentGraphId = preferred ?? graphsSnap.selectedId ?? null
+        if (currentGraphId !== null && !graphsSnap.graphs.some(graph => graph.id === currentGraphId)) {
+          throw new Error('singularity: selected graph missing')
+        }
+        graphsSnap.selectedId = currentGraphId
         paintGraphs()
-        pingMap()
-        try {
-          await syncSelectedChat()
-        } catch (error) {
-          listErr.textContent = error instanceof Error ? error.message : String(error)
+        const url = currentGraphId === null ? MAP : MAP + '?graphId=' + encodeURIComponent(currentGraphId)
+        if (frame.getAttribute('src') !== url) {
+          clearChat()
+          const nextFrame = frame.cloneNode(false)
+          nextFrame.setAttribute('src', url)
+          frame.replaceWith(nextFrame)
+          frame = nextFrame
         }
       }
 
-      const selectGraph = async (id) => {
+      const selectGraph = async id => {
+        const generation = ++selectionGeneration
         listErr.textContent = ''
         const res = await fetch(GRAPHS + '/' + encodeURIComponent(id) + '/select', { method: 'POST' })
         const text = await res.text()
-        if (!res.ok) throw new Error(text || ('HTTP ' + res.status))
-        await refreshGraphs()
+        if (!res.ok) throw new Error(text || 'HTTP ' + res.status)
+        if (generation !== selectionGeneration) return
+        await refreshGraphs(id)
       }
 
-      const deleteGraph = async (id) => {
+      const deleteGraph = async id => {
         if (deletingId !== null) throw new Error('singularity: delete already in progress')
         listErr.textContent = ''
         deletingId = id
@@ -279,9 +374,9 @@ window.__ModuleLoader__.load({
         try {
           const res = await fetch(GRAPHS + '/' + encodeURIComponent(id) + '/delete', { method: 'POST' })
           const text = await res.text()
-          if (!res.ok) throw new Error(text || ('HTTP ' + res.status))
+          if (!res.ok) throw new Error(text || 'HTTP ' + res.status)
           deletingId = null
-          await refreshGraphs()
+          await refreshGraphs(id === currentGraphId ? null : currentGraphId)
         } catch (error) {
           deletingId = null
           paintGraphs()
@@ -301,7 +396,7 @@ window.__ModuleLoader__.load({
           rm.type = 'button'
           rm.textContent = '×'
           rm.addEventListener('click', () => {
-            plannedRepos = plannedRepos.filter((r) => r !== ref)
+            plannedRepos = plannedRepos.filter(r => r !== ref)
             paintTags()
           })
           tag.append(rm)
@@ -312,10 +407,14 @@ window.__ModuleLoader__.load({
       const syncCreateEnabled = () => {
         repoAddBtn.disabled = checkingRepo || creating || createMode !== 'new'
         envNewBtn.disabled = creating
-        createBtn.disabled = creating || checkingRepo || (createMode === 'existing' && envSelect.value.length === 0)
+        createBtn.disabled =
+          creating ||
+          checkingRepo ||
+          (createMode === 'existing' && envSelect.value.length === 0) ||
+          (createMode === 'new' && plannedRepos.length === 0 && repoInput.value.trim().length === 0)
       }
 
-      const setCreateMode = (mode) => {
+      const setCreateMode = mode => {
         createMode = mode
         envNewBtn.classList.toggle('active', mode === 'new')
         envNewPanel.classList.toggle('open', mode === 'new')
@@ -350,7 +449,7 @@ window.__ModuleLoader__.load({
         if (!res.ok) throw new Error(text)
         const data = JSON.parse(text)
         envSelect.replaceChildren()
-        const available = data.envs.filter((env) => env.available)
+        const available = data.envs.filter(env => env.available)
         if (available.length === 0) {
           const opt = document.createElement('option')
           opt.value = ''
@@ -377,9 +476,9 @@ window.__ModuleLoader__.load({
         const raw = repoInput.value.trim().replace(/,/g, '')
         if (raw.length === 0) {
           repoErr.textContent = 'type owner/repo first'
-          return
+          return false
         }
-        if (checkingRepo || creating) return
+        if (checkingRepo || creating) return false
         checkingRepo = true
         syncCreateEnabled()
         repoErr.textContent = ''
@@ -392,17 +491,18 @@ window.__ModuleLoader__.load({
           const text = await res.text()
           if (!res.ok) {
             repoErr.textContent = text
-            return
+            return false
           }
           const data = JSON.parse(text)
           if (plannedRepos.includes(data.ref)) {
             repoErr.textContent = 'already added'
-            return
+            return false
           }
           plannedRepos.push(data.ref)
           repoInput.value = ''
           paintTags()
           repoInput.focus()
+          return true
         } finally {
           checkingRepo = false
           syncCreateEnabled()
@@ -414,6 +514,11 @@ window.__ModuleLoader__.load({
         createErr.textContent = ''
         const body = { name: nameInput.value.trim() || undefined }
         if (createMode === 'new') {
+          if (repoInput.value.trim().length > 0 && !(await addRepoTag())) return
+          if (plannedRepos.length === 0) {
+            repoErr.textContent = 'Add at least one repository'
+            return
+          }
           body.createEnv = true
           body.repos = [...plannedRepos]
         } else {
@@ -435,12 +540,12 @@ window.__ModuleLoader__.load({
           })
           const text = await res.text()
           if (!res.ok) {
-            createErr.textContent = text || ('HTTP ' + res.status)
+            createErr.textContent = text || 'HTTP ' + res.status
             createStatus.textContent = ''
             return
           }
           closeCreate()
-          await refreshGraphs()
+          await refreshGraphs(JSON.parse(text).id)
         } catch (error) {
           createErr.textContent = error instanceof Error ? error.message : String(error)
           createStatus.textContent = ''
@@ -453,9 +558,13 @@ window.__ModuleLoader__.load({
 
       dialogBtn.addEventListener('click', () => setView('dialog'))
       mapBtn.addEventListener('click', () => setView('map'))
-      newBtn.addEventListener('click', () => { void openCreate().catch((e) => { createErr.textContent = String(e) }) })
+      newBtn.addEventListener('click', () => {
+        void openCreate().catch(e => {
+          createErr.textContent = String(e)
+        })
+      })
       cancelBtn.addEventListener('click', () => closeCreate())
-      createBtn.addEventListener('click', (event) => {
+      createBtn.addEventListener('click', event => {
         event.preventDefault()
         event.stopPropagation()
         void createGraph()
@@ -464,9 +573,12 @@ window.__ModuleLoader__.load({
         if (creating) return
         setCreateMode(createMode === 'new' ? 'existing' : 'new')
       })
-      repoAddBtn.addEventListener('click', () => { void addRepoTag() })
+      repoAddBtn.addEventListener('click', () => {
+        void addRepoTag()
+      })
       envSelect.addEventListener('change', syncCreateEnabled)
-      repoInput.addEventListener('keydown', (event) => {
+      repoInput.addEventListener('input', syncCreateEnabled)
+      repoInput.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ',') {
           event.preventDefault()
           void addRepoTag()
@@ -477,39 +589,85 @@ window.__ModuleLoader__.load({
         }
       })
 
-      frame.addEventListener('load', () => { pingMap() })
-
-      window.addEventListener('message', (event) => {
-        if (event.source !== frame.contentWindow) return
+      const onMessage = event => {
+        if (event.source !== frame.contentWindow || event.origin !== location.origin) return
         const data = event.data
-        if (!data || typeof data !== 'object') return
+        if (!data || typeof data !== 'object' || data.graphId !== currentGraphId) return
         if (data.type === 'singularity:open') {
           if (typeof data.sessionId !== 'string' || data.sessionId.length === 0) {
             throw new Error('singularity: open message missing sessionId')
           }
-          void bindChat(data.sessionId).catch((e) => { listErr.textContent = String(e?.message ?? e) })
+          void bindChat(data.sessionId).catch(e => {
+            listErr.textContent = String(e?.message ?? e)
+          })
           return
         }
         if (data.type === 'singularity:prompt') {
+          const target = event.source
           if (typeof data.sessionId !== 'string' || typeof data.text !== 'string') {
             throw new Error('singularity: prompt message invalid')
           }
-          const selected = graphsSnap?.graphs?.find((g) => g.id === graphsSnap.selectedId)
-          if (selected === undefined) throw new Error('singularity: no selected graph for prompt')
-          if (!selected.ready) throw new Error('singularity: free chat locked until graph is ready')
-          const text = data.text.trim()
-          if (text.length === 0) throw new Error('singularity: empty prompt')
-          const binding = ctx.sessions.binding(data.sessionId)
-          if (binding === undefined) throw new Error('singularity: session binding missing')
-          const handle = binding.session.beginSubmission({ mode: 'queue', text, attachments: [] })
-          void binding.session.prompt([{ type: 'text', text }], 'queue', undefined, handle.requestId).then((result) => {
-            if (!result.ok) {
+          const generation = chatGeneration
+          const submit = async () => {
+            const res = await fetch('/singularity/graph?graphId=' + encodeURIComponent(data.graphId))
+            if (!res.ok) throw new Error(await res.text())
+            const view = await res.json()
+            if (generation !== chatGeneration) throw new Error('singularity: session changed during submission')
+            if (!view.meta.ready) throw new Error('singularity: graph is not ready')
+            if (!view.graph.agents.some(agent => agent.id === data.sessionId))
+              throw new Error('singularity: session is not in this graph')
+            const text = data.text.trim()
+            if (text.length === 0) throw new Error('singularity: empty prompt')
+            if (chat.sessionId !== data.sessionId) throw new Error('singularity: prompt session is not bound')
+            const binding = ctx.sessions.binding(data.sessionId)
+            if (binding === undefined) throw new Error('singularity: session binding missing')
+            const handle = binding.session.beginSubmission({ mode: 'queue', text, attachments: [] })
+            try {
+              const result = await binding.session.prompt(
+                [{ type: 'text', text }],
+                'queue',
+                undefined,
+                handle.requestId,
+              )
+              if (!result.ok) throw new Error('singularity chat: ' + JSON.stringify(result.error))
+            } catch (error) {
               handle.abandon()
-              throw new Error('singularity chat: prompt failed: ' + JSON.stringify(result.error))
+              throw error
             }
-          })
+          }
+          void submit().then(
+            () => {
+              target.postMessage(
+                { type: 'singularity:prompt-result', graphId: data.graphId, requestId: data.requestId },
+                location.origin,
+              )
+            },
+            error => {
+              target.postMessage(
+                {
+                  type: 'singularity:prompt-result',
+                  graphId: data.graphId,
+                  requestId: data.requestId,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+                location.origin,
+              )
+            },
+          )
         }
-      })
+      }
+      window.addEventListener('message', onMessage)
+      ctx.effect(
+        () => () => {
+          graphGeneration += 1
+          clearChat()
+          window.removeEventListener('message', onMessage)
+          frame.remove()
+          host.remove()
+          style.remove()
+        },
+        'singularity: shell',
+      )
     }
     return module.exports
   },

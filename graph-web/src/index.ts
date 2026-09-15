@@ -39,7 +39,7 @@ export const name = 'graph-web'
 export const inject = ['graph', 'layout', 'graphs', 'envBuilder', 'sessions', 'webServer', 'hitl']
 
 export function apply(ctx: Context): void {
-  const broadcast = new GraphBroadcast()
+  const broadcast = new GraphBroadcast(ctx)
   ctx.on('graph/change', snapshot => broadcast.publish(snapshot))
   ctx.on('layout/change', snapshot => broadcast.publishLayout(snapshot))
   ctx.on('graphs/change', snapshot => broadcast.publishEvent('graphs', snapshot))

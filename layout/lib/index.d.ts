@@ -39,7 +39,7 @@ declare class LayoutState {
 }
 //#endregion
 //#region src/index.d.ts
-declare module '@deepseek-ai/dsh-session' {
+declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
     'layout/event': LayoutEvent;
   }
@@ -54,20 +54,26 @@ declare module '@deepseek-ai/cordis' {
 }
 declare class LayoutService extends Service {
   static inject: string[];
-  private ready;
-  private storeId;
-  private handle;
-  private state;
-  private nextSeq;
-  private writes;
-  private active;
+  private readonly entries;
+  private activeId?;
+  private closing;
   constructor(ctx: Context, config?: LayoutConfig);
-  switchStore(rawId: string): Promise<LayoutSnapshot>;
+  switchStore(id: string): Promise<LayoutSnapshot>;
+  clearActive(): void;
   snapshot(): Promise<LayoutSnapshot>;
+  snapshotIn(id: string): Promise<LayoutSnapshot>;
   set(sessionId: SessionId, node: CanvasNode): Promise<void>;
+  setIn(id: string, sessionId: SessionId, node: CanvasNode): Promise<void>;
   remove(sessionId: SessionId): Promise<void>;
+  removeIn(id: string, sessionId: SessionId): Promise<void>;
   commit(events: readonly LayoutEvent[]): Promise<void>;
+  commitIn(id: string, events: readonly LayoutEvent[]): Promise<void>;
+  private active;
+  private activeIdOf;
+  private entry;
+  private openEntry;
   private open;
+  private close;
   private header;
 }
 //#endregion

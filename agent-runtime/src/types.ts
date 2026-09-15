@@ -9,6 +9,9 @@ declare module '@deepseek-ai/cordis' {
     agentRuntime: import('./index.ts').AgentRuntime
     sessionVisibility: SessionVisibility
   }
+  interface Events {
+    'agentRuntime/spawned'(event: { parentId: SessionId; sessionId: SessionId }): void
+  }
 }
 
 export interface SessionVisibility {
@@ -17,8 +20,15 @@ export interface SessionVisibility {
 
 export interface RootRequest {
   readonly sessionId: SessionId
+  readonly cwd: string
+  readonly scope: GraphScope
   readonly agentOptions?: AgentOptions
   readonly agentPreset?: string
+}
+
+export interface GraphScope {
+  readonly graphStoreId: string
+  readonly layoutStoreId: string
 }
 
 export interface SpawnRequest {
