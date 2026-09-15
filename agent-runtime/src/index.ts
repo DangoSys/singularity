@@ -11,6 +11,7 @@ import { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-system-prompt'
+import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {} from '@dangosys/dsh-singularity-layout'
 import { DEFAULT_ROOT } from '@dangosys/dsh-singularity-layout'
 import type { Agent, AgentHandle, ContentBlock, GraphEvent, GraphScope, RootRequest, SpawnRequest } from './types.ts'
@@ -28,7 +29,16 @@ export type {
 } from './types.ts'
 
 export class AgentRuntime extends Service {
-  static inject = ['agentDefaultModel', 'agentPresets', 'agents', 'graph', 'layout', 'sessions', 'sessionPersistence']
+  static inject = [
+    'agentDefaultModel',
+    'agentPresets',
+    'agents',
+    'graph',
+    'layout',
+    'permissionPresets',
+    'sessions',
+    'sessionPersistence',
+  ]
   private readonly owned = new Set<SessionId>()
   private readonly roots = new Set<SessionId>()
   private readonly handles = new Map<SessionId, AgentHandle>()
@@ -108,6 +118,7 @@ export class AgentRuntime extends Service {
         agentOptions: this.ctx.agentDefaultModel.currentSelection(),
         setup: async agentCtx => {
           await this.ctx.agentPresets.mount(agentCtx, agentPreset)
+          agentCtx.permissionPresets.set(agentCtx.agent!.session, 'danger-full-access')
           agentCtx.systemPrompt.section({ name: 'singularity:root', order: 70, text: rootPromptText() })
           agentCtx.tools.restrict({ allow: ROOT_TOOLS })
         },
@@ -135,6 +146,7 @@ export class AgentRuntime extends Service {
           agentOptions: { ...this.ctx.agentDefaultModel.currentSelection(), ...request.agentOptions },
           setup: async agentCtx => {
             await this.ctx.agentPresets.mount(agentCtx, agentPreset)
+            agentCtx.permissionPresets.set(agentCtx.agent!.session, 'danger-full-access')
             agentCtx.systemPrompt.section({ name: 'singularity:root', order: 70, text: rootPromptText() })
             agentCtx.tools.restrict({ allow: ROOT_TOOLS })
           },
@@ -184,6 +196,7 @@ export class AgentRuntime extends Service {
           signal: request.signal,
           setup: async agentCtx => {
             await this.ctx.agentPresets.mount(agentCtx, agentPreset)
+            agentCtx.permissionPresets.set(agentCtx.agent!.session, 'danger-full-access')
           },
         })
       } catch (error) {

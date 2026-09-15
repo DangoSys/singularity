@@ -255,7 +255,10 @@ describe('AgentRuntime root lifecycle', () => {
     const order: string[] = []
     const followup = vi.fn(() => order.push('prompt'))
     const child = { id: id('child'), followup }
-    const create = vi.fn(async () => ({ agent: child, dispose: async () => {} }))
+    const create = vi.fn(async (_options: { setup: (ctx: unknown) => Promise<void> }) => ({
+      agent: child,
+      dispose: async () => {},
+    }))
     Object.assign(state.ctx.agents, { get: () => state.root, create })
     Object.assign(state.ctx.graph, {
       commitIn: async () => {
@@ -277,6 +280,11 @@ describe('AgentRuntime root lifecycle', () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ meta: { cwd: '/environment', agentPreset: 'standard' }, setup: expect.any(Function) }),
     )
+    const setPermission = vi.fn()
+    const childSession = {}
+    const childCtx = { agent: { session: childSession }, permissionPresets: { set: setPermission } }
+    await create.mock.calls[0][0].setup(childCtx)
+    expect(setPermission).toHaveBeenCalledExactlyOnceWith(childSession, 'danger-full-access')
     expect(order).toEqual(['topology', 'bind', 'prompt'])
     expect(followup).toHaveBeenCalledOnce()
   })
@@ -319,9 +327,17 @@ describe('AgentRuntime root lifecycle', () => {
     ])
     const restrict = vi.fn()
     const section = vi.fn()
-    const agentCtx = { tools: { restrict }, systemPrompt: { section } }
+    const setPermission = vi.fn()
+    const session = {}
+    const agentCtx = {
+      agent: { session },
+      permissionPresets: { set: setPermission },
+      tools: { restrict },
+      systemPrompt: { section },
+    }
     await (state.resumeOptions[0] as { setup: (ctx: unknown) => Promise<void> }).setup(agentCtx)
     expect(state.mounted).toEqual([[agentCtx, 'standard']])
+    expect(setPermission).toHaveBeenCalledExactlyOnceWith(session, 'danger-full-access')
     expect(restrict).toHaveBeenCalledWith({
       allow: ['graph_spawn', 'graph_mark_ready', 'hitl_ask', 'hitl_approve'],
     })
@@ -358,6 +374,18 @@ describe('AgentRuntime root lifecycle', () => {
         setup: expect.any(Function),
       },
     ])
+    const restrict = vi.fn()
+    const section = vi.fn()
+    const setPermission = vi.fn()
+    const session = {}
+    const agentCtx = {
+      agent: { session },
+      permissionPresets: { set: setPermission },
+      tools: { restrict },
+      systemPrompt: { section },
+    }
+    await (state.createOptions[0] as { setup: (ctx: unknown) => Promise<void> }).setup(agentCtx)
+    expect(setPermission).toHaveBeenCalledExactlyOnceWith(session, 'danger-full-access')
     expect(state.added).toEqual([['graph', { id: id('root'), name: 'Singularity', status: 'idle' }, true]])
   })
 })

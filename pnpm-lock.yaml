@@ -32,6 +32,9 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: link:../../../thirdparty/deepseek-harness/packages/llm/llm
         version: link:../../../thirdparty/deepseek-harness/packages/llm/llm
+      '@deepseek-ai/dsh-permission-presets':
+        specifier: link:../../../thirdparty/deepseek-harness/packages/interaction/permission-presets
+        version: link:../../../thirdparty/deepseek-harness/packages/interaction/permission-presets
       '@deepseek-ai/dsh-session':
         specifier: link:../../../thirdparty/deepseek-harness/packages/core/session
         version: link:../../../thirdparty/deepseek-harness/packages/core/session
